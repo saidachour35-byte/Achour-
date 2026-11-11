@@ -1,0 +1,44 @@
+{
+  "id": "/",
+  "name": "Achour Player",
+  "short_name": "AchourPro",
+  "description": "A premium IPTV player with Royal Pro aesthetics and AI-powered channel discovery.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#080808",
+  "theme_color": "#D4AF37",
+  "icons": [
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/app_icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/banner-tv.png",
+      "sizes": "320x180",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/firetv-icon-1280x720.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

@@ -1,0 +1,73 @@
+{
+  "entities": {
+    "favoriteItem": {
+      "title": "Favorite Item",
+      "description": "Metadata for a favorited stream",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 200 },
+        "logo": { "type": "string", "maxLength": 1024 },
+        "url": { "type": "string", "maxLength": 2048 },
+        "category": { "type": "string", "maxLength": 200 },
+        "category_id": { "type": "string", "maxLength": 128 },
+        "type": { "type": "string", "enum": ["live", "movie", "series"] },
+        "addedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name"]
+    },
+    "userPreferences": {
+      "title": "User Preferences",
+      "description": "User-specific settings and favorites",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128 },
+        "favorites": { 
+          "type": "array",
+          "items": { "type": "string", "maxLength": 128 },
+          "maxItems": 500
+        },
+        "favoriteItems": {
+          "type": "array",
+          "items": { "$ref": "favoriteItem" },
+          "maxItems": 500
+        },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId"]
+    },
+    "playlist": {
+      "title": "Playlist",
+      "description": "An IPTV playlist (Xtream, M3U, or Stalker)",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "type": { "type": "string", "enum": ["xtream", "m3u", "stalker"] },
+        "url": { "type": "string", "maxLength": 500 },
+        "username": { "type": "string", "maxLength": 100 },
+        "password": { "type": "string", "maxLength": 100 },
+        "macAddress": { "type": "string", "maxLength": 100 },
+        "portal": { "type": "string", "maxLength": 500 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "isProtected": { "type": "boolean" },
+        "pin": { "type": "string", "maxLength": 6 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "type", "userId"]
+    }
+  },
+  "firestore": {
+    "/user_preferences/{userId}": {
+      "schema": "userPreferences",
+      "description": "User specific preferences and favorites"
+    },
+    "/users/{userId}": {
+      "schema": "userPreferences",
+      "description": "Mirror of user preferences for profile access"
+    },
+    "/playlists/{playlistId}": {
+      "schema": "playlist",
+      "description": "Collection of IPTV playlists"
+    }
+  }
+}

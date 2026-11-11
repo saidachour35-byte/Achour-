@@ -1,0 +1,2 @@
+export const logoImg = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200"><rect width="200" height="200" rx="40" fill="%23000000"/><rect x="10" y="10" width="180" height="180" rx="30" fill="none" stroke="%23D4AF37" stroke-width="4"/><path d="M75 55 L145 100 L75 145 Z" fill="%23D4AF37"/><circle cx="100" cy="100" r="85" fill="none" stroke="%23D4AF37" stroke-width="2" stroke-dasharray="8,6"/></svg>`;
+export default logoImg;

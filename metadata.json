@@ -1,0 +1,6 @@
+{
+  "name": "Achour Player",
+  "description": "A premium IPTV player with Royal Pro aesthetics and AI-powered channel discovery.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
