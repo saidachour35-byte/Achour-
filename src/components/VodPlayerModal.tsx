@@ -28,7 +28,7 @@ import {
   Info
 } from 'lucide-react';
 import { VodItem, SeriesEpisode } from '../types';
-import { pushBackHandler, BackPriority } from '../utils/tvNavigation';
+import { pushBackHandler, BackPriority, parseTVKeyEvent } from '../utils/tvNavigation';
 import { useI18n } from '../utils/i18n';
 import { getPlatformUrl } from '../utils/platform';
 
@@ -393,6 +393,7 @@ export const VodPlayerModal: React.FC<VodPlayerModalProps> = ({
         setSelectedSubtitle(data.id);
       });
 
+      let hlsErrorCount = 0;
       hls.on(Hls.Events.ERROR, (_, data) => {
         if (data.details === Hls.ErrorDetails.BUFFER_STALLED_ERROR || data.details === Hls.ErrorDetails.BUFFER_NUDGE_ON_STALL) {
           if (video && video.paused && isPlaying) {
@@ -401,21 +402,38 @@ export const VodPlayerModal: React.FC<VodPlayerModalProps> = ({
           return;
         }
         if (data.fatal) {
-          switch (data.type) {
-            case Hls.ErrorTypes.NETWORK_ERROR:
-              hls.startLoad();
-              break;
-            case Hls.ErrorTypes.MEDIA_ERROR:
-              hls.recoverMediaError();
-              break;
-            default:
+          hlsErrorCount++;
+          console.warn('[VodPlayerModal] HLS Fatal Error:', data.type, data.details, 'count:', hlsErrorCount);
+          if (hlsErrorCount <= 2 && data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+            hls.recoverMediaError();
+          } else if (hlsErrorCount <= 2 && data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+            hls.startLoad();
+          } else {
+            // Fall back directly to native video element src (uses Android WebView's native ExoPlayer)
+            console.warn('[VodPlayerModal] Falling back to direct video element src:', activeStreamUrl);
+            try {
               hls.destroy();
-              break;
+            } catch (e) {}
+            hlsRef.current = null;
+            if (video) {
+              video.src = activeStreamUrl || rawActiveStreamUrl;
+              if (isPlaying) {
+                video.play().catch(err => {
+                  console.warn('[VodPlayerModal] Direct video play failed, trying raw URL fallback:', err);
+                  if (video && rawActiveStreamUrl && rawActiveStreamUrl !== activeStreamUrl) {
+                    video.src = rawActiveStreamUrl;
+                    video.play().catch(() => setIsPlaying(false));
+                  } else {
+                    setIsPlaying(false);
+                  }
+                });
+              }
+            }
           }
         }
       });
     } else {
-      video.src = activeStreamUrl;
+      video.src = activeStreamUrl || rawActiveStreamUrl;
       if (isPlaying) {
         video.play().catch(() => setIsPlaying(false));
       }
@@ -780,23 +798,28 @@ export const VodPlayerModal: React.FC<VodPlayerModalProps> = ({
 
       resetControlsTimeout();
 
+      const action = parseTVKeyEvent(e);
+      const key = e.key;
+
+      resetControlsTimeout();
+
       // Remote Color Keys
-      if (e.key === 'r' || e.key === 'Red' || e.keyCode === 403) {
+      if (action === 'RED' || e.key === 'r' || e.key === 'Red' || e.keyCode === 403) {
         e.preventDefault();
         setActivePopup(prev => prev === 'audio' ? 'none' : 'audio');
         return;
       }
-      if (e.key === 'g' || e.key === 'Green' || e.keyCode === 404) {
+      if (action === 'GREEN' || e.key === 'g' || e.key === 'Green' || e.keyCode === 404) {
         e.preventDefault();
         setActivePopup(prev => prev === 'subtitles' ? 'none' : 'subtitles');
         return;
       }
-      if (e.key === 'y' || e.key === 'Yellow' || e.keyCode === 405) {
+      if (action === 'YELLOW' || e.key === 'y' || e.key === 'Yellow' || e.keyCode === 405) {
         e.preventDefault();
         setActivePopup(prev => prev === 'quality' ? 'none' : 'quality');
         return;
       }
-      if (e.key === 'b' || e.key === 'Blue' || e.keyCode === 406) {
+      if (action === 'BLUE' || e.key === 'b' || e.key === 'Blue' || e.keyCode === 406) {
         e.preventDefault();
         setActivePopup(prev => prev === 'aspect' ? 'none' : 'aspect');
         return;
@@ -804,19 +827,19 @@ export const VodPlayerModal: React.FC<VodPlayerModalProps> = ({
 
       // Live TV Dedicated Zapping Keys
       if (isLive) {
-        if (e.key === 'ChannelUp' || e.key === 'PageUp') {
+        if (action === 'CHANNEL_UP') {
           e.preventDefault();
           handlePrevChannel();
           return;
         }
-        if (e.key === 'ChannelDown' || e.key === 'PageDown') {
+        if (action === 'CHANNEL_DOWN') {
           e.preventDefault();
           handleNextChannel();
           return;
         }
       }
 
-      if (e.key === 'Escape' || e.key === 'Back' || e.keyCode === 10009 || e.keyCode === 461) {
+      if (action === 'BACK') {
         e.preventDefault();
         e.stopPropagation();
 
@@ -838,11 +861,6 @@ export const VodPlayerModal: React.FC<VodPlayerModalProps> = ({
           return;
         }
 
-        if (activePopup !== 'none') {
-          setActivePopup('none');
-          return;
-        }
-
         if (showControls) {
           setShowControls(false);
           return;
@@ -851,9 +869,6 @@ export const VodPlayerModal: React.FC<VodPlayerModalProps> = ({
         onClose();
         return;
       }
-
-      const key = e.key;
-      resetControlsTimeout();
 
       // If a popup (Audio, Subtitles, Aspect, EPG) is active, navigate inside the popup
       if (activePopup !== 'none') {
@@ -866,17 +881,17 @@ export const VodPlayerModal: React.FC<VodPlayerModalProps> = ({
           if (focusableItems.length > 0) {
             const activeIdx = focusableItems.findIndex((el) => el === document.activeElement);
 
-            if (key === 'ArrowDown') {
+            if (action === 'DOWN') {
               e.preventDefault();
               const nextIdx = activeIdx < focusableItems.length - 1 ? activeIdx + 1 : 0;
               focusableItems[nextIdx]?.focus();
-            } else if (key === 'ArrowUp') {
+            } else if (action === 'UP') {
               e.preventDefault();
               const prevIdx = activeIdx > 0 ? activeIdx - 1 : focusableItems.length - 1;
               focusableItems[prevIdx]?.focus();
-            } else if (key === 'ArrowRight' || key === 'ArrowLeft') {
+            } else if (action === 'RIGHT' || action === 'LEFT') {
               e.preventDefault();
-            } else if (key === 'Enter' || key === ' ' || key === 'Select' || e.keyCode === 13 || e.keyCode === 23) {
+            } else if (action === 'SELECT') {
               e.preventDefault();
               if (document.activeElement instanceof HTMLElement) {
                 document.activeElement.click();
@@ -887,9 +902,9 @@ export const VodPlayerModal: React.FC<VodPlayerModalProps> = ({
         return;
       }
 
-      // If controls are hidden
+      // If controls are hidden, pressing any direction or OK shows controls and focuses control buttons
       if (!showControls) {
-        if (['ArrowUp', 'ArrowDown', 'Enter', ' ', 'Select'].includes(key) || e.keyCode === 13 || e.keyCode === 23) {
+        if (['UP', 'DOWN', 'SELECT'].includes(action)) {
           e.preventDefault();
           setShowControls(true);
           setTimeout(() => {
@@ -901,11 +916,11 @@ export const VodPlayerModal: React.FC<VodPlayerModalProps> = ({
         }
 
         if (isLive) {
-          if (key === 'ArrowRight') {
+          if (action === 'RIGHT') {
             e.preventDefault();
             handleNextChannel();
             return;
-          } else if (key === 'ArrowLeft') {
+          } else if (action === 'LEFT') {
             e.preventDefault();
             handlePrevChannel();
             return;
@@ -919,7 +934,7 @@ export const VodPlayerModal: React.FC<VodPlayerModalProps> = ({
       const mainRowItems = Array.from(containerRef.current?.querySelectorAll<HTMLElement>('[data-tv-row="main"]') || []);
       const subRowItems = Array.from(containerRef.current?.querySelectorAll<HTMLElement>('[data-tv-row="sub"]') || []);
 
-      if (key === 'ArrowDown') {
+      if (action === 'DOWN') {
         e.preventDefault();
         setShowControls(true);
         if (isSeekbarFocused) {
@@ -938,7 +953,7 @@ export const VodPlayerModal: React.FC<VodPlayerModalProps> = ({
             mainRowItems[0]?.focus();
           }
         }
-      } else if (key === 'ArrowUp') {
+      } else if (action === 'UP') {
         e.preventDefault();
         setShowControls(true);
         if (currentActive && currentActive.getAttribute('data-tv-row') === 'sub') {
@@ -955,7 +970,7 @@ export const VodPlayerModal: React.FC<VodPlayerModalProps> = ({
           const playBtn = containerRef.current?.querySelector<HTMLElement>('.vod-bottom-play-btn') || mainRowItems[0];
           playBtn?.focus();
         }
-      } else if (key === 'ArrowRight') {
+      } else if (action === 'RIGHT') {
         e.preventDefault();
         setShowControls(true);
         if (isSeekbarFocused) {
@@ -972,7 +987,7 @@ export const VodPlayerModal: React.FC<VodPlayerModalProps> = ({
           const playBtn = containerRef.current?.querySelector<HTMLElement>('.vod-bottom-play-btn') || mainRowItems[0] || subRowItems[0];
           playBtn?.focus();
         }
-      } else if (key === 'ArrowLeft') {
+      } else if (action === 'LEFT') {
         e.preventDefault();
         setShowControls(true);
         if (isSeekbarFocused) {
@@ -989,7 +1004,7 @@ export const VodPlayerModal: React.FC<VodPlayerModalProps> = ({
           const playBtn = containerRef.current?.querySelector<HTMLElement>('.vod-bottom-play-btn') || mainRowItems[0] || subRowItems[0];
           playBtn?.focus();
         }
-      } else if (key === 'Enter' || key === ' ' || key === 'Select' || e.keyCode === 13 || e.keyCode === 32 || e.keyCode === 23) {
+      } else if (action === 'SELECT') {
         e.preventDefault();
         if (currentActive && currentActive.tagName === 'BUTTON' && !currentActive.classList.contains('vod-seekbar-input')) {
           currentActive.click();

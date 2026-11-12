@@ -151,8 +151,8 @@ export default function SplashScreen({
       }
     };
     
-    // Start preloading immediately (400ms after splash launch)
-    const warmTimer = setTimeout(preloadPlaylistData, 400);
+    // Start background preloading after 2.5 seconds so start animation & timer run 100% smoothly without stutter
+    const warmTimer = setTimeout(preloadPlaylistData, 2500);
 
     const duration = 10000; // 10 seconds
     const intervalTime = 100;

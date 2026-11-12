@@ -6,10 +6,18 @@
 
 export const isNativeApp = (): boolean => {
   if (typeof window === 'undefined') return false;
-  const isCapacitorNative = !!(window as any).Capacitor?.isNativePlatform?.();
-  const isCapacitorScheme = window.location.protocol === 'capacitor:' || window.location.protocol === 'file:';
+  const cap = (window as any).Capacitor;
+  if (cap) {
+    if (typeof cap.isNativePlatform === 'function' && cap.isNativePlatform()) return true;
+    if (cap.platform === 'android' || cap.platform === 'ios') return true;
+    if (typeof cap.getPlatform === 'function' && (cap.getPlatform() === 'android' || cap.getPlatform() === 'ios')) return true;
+  }
+  const isCapacitorHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname === 'capacitor.default';
+  const isCapacitorScheme = window.location.protocol === 'capacitor:' || window.location.protocol === 'file:' || isCapacitorHost;
   const hasNativeBridge = !!((window as any).AchourNative || (window as any).Android || (window as any).JSBridge);
-  return isCapacitorNative || isCapacitorScheme || hasNativeBridge;
+  const isAndroidWebView = /wv|Android.*Version\/[0-9]/i.test(navigator.userAgent);
+  
+  return isCapacitorScheme || hasNativeBridge || isAndroidWebView;
 };
 
 export const isAndroid = (): boolean => {
@@ -50,7 +58,7 @@ export const isTVDevice = (): boolean => {
 export const getPlatformUrl = (type: 'stream' | 'm3u' | 'xtream' | 'stalker' | 'epg' | 'get', rawUrl: string, params: Record<string, string> = {}): string => {
   if (!rawUrl) return '';
 
-  // In native Android APK, direct stream URLs work natively with ExoPlayer / Hls.js
+  // In native Android APK, direct stream URLs work natively with ExoPlayer / Hls.js / Native Video
   if (type === 'stream') {
     if (isNativeApp()) {
       return rawUrl;
@@ -59,14 +67,14 @@ export const getPlatformUrl = (type: 'stream' | 'm3u' | 'xtream' | 'stalker' | '
     return `/api/proxy/stream?${query.toString()}`;
   }
 
-  // In Native Android APK, API requests can connect directly to the host
+  // In Native Android APK, API requests connect directly to the provider host
   if (isNativeApp()) {
     if (type === 'xtream') {
       const cleanHost = rawUrl.trim().replace(/\/+$/, '').replace(/\/(player_api|get|index)\.php.*$/i, '').replace(/\/c\/?$/i, '').replace(/\?.*$/, '');
       const search = new URLSearchParams(params);
       return `${cleanHost}/player_api.php?${search.toString()}`;
     }
-    if (type === 'm3u' || type === 'get') {
+    if (type === 'm3u' || type === 'get' || type === 'epg' || type === 'stalker') {
       return rawUrl;
     }
   }

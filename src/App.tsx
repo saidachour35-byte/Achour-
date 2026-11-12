@@ -43,6 +43,9 @@ const DEFAULT_SETTINGS: AppSettings = {
   zoomScale: 98,
 };
 
+import { App as CapacitorApp } from '@capacitor/app';
+import { StatusBar } from '@capacitor/status-bar';
+
 import XtreamDebugOverlay from './components/XtreamDebugOverlay';
 
 
@@ -52,6 +55,10 @@ export default function App() {
   const [isRestricted, setIsRestricted] = useState(false);
 
   useEffect(() => {
+    // Hide status bar for immersive full screen on mobile devices
+    try {
+      StatusBar.hide().catch(() => {});
+    } catch (e) {}
 
     // Allow running on all devices
     setIsRestricted(false);
@@ -129,7 +136,10 @@ export default function App() {
   // Global Hardware Back Key Interceptor for Android TV, Fire TV & Android Phones
   useEffect(() => {
     // Lock browser history state to block page unloading / navigation on Back
-    window.history.pushState({ page: 'achour_app' }, '', window.location.href);
+    for (let i = 0; i < 10; i++) {
+      window.history.pushState({ page: 'achour_app' }, '', window.location.href);
+    }
+
     const handlePopState = (e: PopStateEvent) => {
       window.history.pushState({ page: 'achour_app' }, '', window.location.href);
       executeBackHandler();
@@ -150,6 +160,14 @@ export default function App() {
       triggerBack();
     };
 
+    // Register Capacitor Native Android Hardware Back Button listener
+    let capBackListener: any = null;
+    try {
+      capBackListener = CapacitorApp.addListener('backButton', ({ canGoBack }: any) => {
+        triggerBack();
+      });
+    } catch (e) {}
+
     const handleGlobalBack = (e: KeyboardEvent) => {
       const action = parseTVKeyEvent(e);
       if (action === 'BACK') {
@@ -168,6 +186,9 @@ export default function App() {
     return () => {
       window.removeEventListener('popstate', handlePopState);
       window.removeEventListener('keydown', handleGlobalBack, { capture: true });
+      if (capBackListener && typeof capBackListener.remove === 'function') {
+        capBackListener.remove();
+      }
       delete (window as any).handleAndroidBack;
     };
   }, []);

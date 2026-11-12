@@ -2177,15 +2177,15 @@ export default function SettingsView({ onBack, settings, onUpdateSettings, userI
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className={`w-full max-w-lg bg-zinc-950 border-2 border-gold/50 rounded-3xl p-5 shadow-2xl flex flex-col space-y-4 ${isRtl ? 'font-cairo text-right' : 'text-left'}`}
+              className={`w-full max-w-lg max-h-[85vh] sm:max-h-[90vh] bg-zinc-950 border-2 border-gold/50 rounded-3xl shadow-2xl flex flex-col overflow-hidden ${isRtl ? 'font-cairo text-right' : 'text-left'}`}
             >
-              <div className={`flex items-center justify-between pb-3 border-b border-white/10 ${isRtl ? 'flex-row-reverse' : ''}`}>
+              <div className={`p-4 border-b border-white/10 flex items-center justify-between shrink-0 ${isRtl ? 'flex-row-reverse' : ''}`}>
                 <div className={`flex items-center gap-2.5 ${isRtl ? 'flex-row-reverse' : ''}`}>
                   <div className="p-2 rounded-xl bg-gold text-black">
-                    <Upload size={20} />
+                    <Upload size={18} />
                   </div>
                   <div>
-                    <h3 className="text-sm font-black text-white uppercase tracking-wider">
+                    <h3 className="text-xs sm:text-sm font-black text-white uppercase tracking-wider">
                       {isRtl ? 'رفع أو لصق محتوى ملف M3U' : 'Upload or Paste M3U Content'}
                     </h3>
                   </div>
@@ -2195,30 +2195,30 @@ export default function SettingsView({ onBack, settings, onUpdateSettings, userI
                 </button>
               </div>
 
-              <div className="space-y-4 py-1">
+              <div className="flex-1 overflow-y-auto p-4 space-y-3.5 no-scrollbar">
                 {/* File Upload Button */}
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-gold">
+                  <label className="text-[11px] font-bold text-gold">
                     {isRtl ? 'الطريقة الأولى: اختيار ملف من الجهاز' : 'Option 1: Choose File from Device'}
                   </label>
                   <button
                     onClick={() => channelFileInputRef.current?.click()}
-                    className="w-full py-3 bg-white/5 border border-dashed border-gold/40 hover:border-gold hover:bg-gold/10 rounded-2xl text-xs font-bold text-white flex items-center justify-center gap-2 transition-all"
+                    className="w-full py-2.5 bg-white/5 border border-dashed border-gold/40 hover:border-gold hover:bg-gold/10 rounded-2xl text-xs font-bold text-white flex items-center justify-center gap-2 transition-all"
                   >
-                    <Upload size={16} className="text-gold" />
+                    <Upload size={15} className="text-gold" />
                     <span>{isRtl ? 'فتح مستعرض ملفات الجهاز...' : 'Open Device File Browser...'}</span>
                   </button>
                 </div>
 
                 <div className="flex items-center gap-2 my-1">
                   <div className="flex-1 h-[1px] bg-white/10" />
-                  <span className="text-[10px] text-zinc-500 font-bold uppercase">{isRtl ? 'أو' : 'OR'}</span>
+                  <span className="text-[9px] text-zinc-500 font-bold uppercase">{isRtl ? 'أو' : 'OR'}</span>
                   <div className="flex-1 h-[1px] bg-white/10" />
                 </div>
 
                 {/* Direct Text Area Paste */}
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-gold">
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-gold">
                     {isRtl ? 'الطريقة الثانية (تضمن الفتح على التلفزيون): لصق محتوى النص مباشرة' : 'Option 2 (Guaranteed on TV): Paste M3U Text Directly'}
                   </label>
 
@@ -2234,13 +2234,13 @@ export default function SettingsView({ onBack, settings, onUpdateSettings, userI
                     value={pastedM3uText}
                     onChange={(e) => setPastedM3uText(e.target.value)}
                     placeholder={`#EXTM3U\n#EXTINF:-1 tvg-id="1" group-title="الأخبار", قناة الجزيرة\nhttp://server.com/live/ch1.m3u8`}
-                    rows={5}
-                    className="w-full bg-black/80 border border-white/10 rounded-2xl p-3 text-xs font-mono text-gold outline-none focus:border-gold/60 no-scrollbar"
+                    rows={4}
+                    className="w-full bg-black/80 border border-white/10 rounded-2xl p-2.5 text-xs font-mono text-gold outline-none focus:border-gold/60 no-scrollbar"
                   />
                 </div>
               </div>
 
-              <div className="pt-3 border-t border-white/10 flex items-center justify-end gap-2">
+              <div className="p-3.5 border-t border-white/10 bg-zinc-950 flex items-center justify-end gap-2 shrink-0 z-20">
                 <button onClick={() => setShowUploadPasteModal(false)} className="px-4 py-2 bg-white/10 text-white rounded-xl text-xs font-bold">
                   {isRtl ? 'إلغاء' : 'Cancel'}
                 </button>

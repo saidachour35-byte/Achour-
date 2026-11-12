@@ -216,6 +216,21 @@ export interface ParsedCategory {
   count?: number;
 }
 
+export function isFavCategory(c: ParsedCategory | { category_id?: string; category_name?: string; name?: string; id?: string }): boolean {
+  if (!c) return false;
+  const normName = String(c.category_name || (c as any).name || '').toLowerCase();
+  const normId = String(c.category_id || (c as any).id || '').toLowerCase();
+  return (
+    normId === 'favorites' || 
+    normId === 'fav' || 
+    normId === 'favorites_internal' ||
+    normName.includes('مفضلة') || 
+    normName.includes('مفضله') || 
+    normName.includes('favorite') ||
+    normName.includes('⭐')
+  );
+}
+
 export function detectGenre(channelName: string, categoryName: string = ''): string {
   const text = (channelName + ' ' + categoryName).toLowerCase();
   if (/sport|bein|ssc|kora|foot|espn|eurosport|رياض/i.test(text)) return 'sports';
@@ -261,14 +276,10 @@ export default function LivePlayer({ onBack, settings, onUpdateSettings, userId,
     const player = settings.selectedPlayer || '';
     const packageName = getPlayerPackage(player);
     
-    // Resolve proxy URL if necessary (especially for Xtream/Authenticated streams)
-    let finalUrl = url;
-    if (activePlaylist?.type === 'xtream' || url.includes('/live/') || url.includes('/movie/')) {
-       finalUrl = `/api/proxy/stream?url=${encodeURIComponent(url)}&vpnRegion=${encodeURIComponent(settings.vpnRegion || 'auto')}`;
-       // If running in a web context, we need the full absolute URL
-       if (finalUrl.startsWith('/')) {
-         finalUrl = window.location.origin + finalUrl;
-       }
+    // Resolve stream URL appropriately for Native APK vs Web Preview
+    let finalUrl = getPlatformUrl('stream', url, { vpnRegion: settings.vpnRegion || 'auto' });
+    if (finalUrl.startsWith('/')) {
+      finalUrl = window.location.origin + finalUrl;
     }
 
     // MEDIA3 NATIVE BRIDGE INTEGRATION (Android APK Wrapper)
@@ -317,7 +328,8 @@ export default function LivePlayer({ onBack, settings, onUpdateSettings, userId,
   const [sortOrder, setSortOrder] = useState<'none' | 'az'>('none');
   const [loading, setLoading] = useState(true);
   const [activePlaylist, setActivePlaylist] = useState<Playlist | null>(null);
-  
+  const [favorites, setFavorites] = useState<string[]>(() => getLocalFavoriteIds());
+
   // Load categories and initial data from DB
   useEffect(() => {
     const loadCategories = async () => {
@@ -327,17 +339,14 @@ export default function LivePlayer({ onBack, settings, onUpdateSettings, userId,
       const playlistId = settings.activePlaylistId || 'default';
       const typeToLoad = mediaType === 'favorites' ? 'live' : mediaType;
       try {
+        let formattedCats: ParsedCategory[] = [];
         const cachedCats = await getCategoriesByPlaylistAndType(playlistId, typeToLoad as any);
         if (cachedCats.length > 0) {
-          const formattedCats = cachedCats.map((c: any) => ({
+          formattedCats = cachedCats.map((c: any) => ({
             category_id: String(c.category_id || c.id || ''),
             category_name: String(c.category_name || c.name || ''),
             count: c.count || 0
           }));
-          setCategories(formattedCats);
-          if (formattedCats.length > 0) {
-            setSelectedCategory(formattedCats[0].category_id);
-          }
         } else {
           const cachedChannels = await getChannelsByPlaylistAndType(playlistId, typeToLoad as any);
           if (cachedChannels.length > 0) {
@@ -349,12 +358,27 @@ export default function LivePlayer({ onBack, settings, onUpdateSettings, userId,
               }
               catMap.get(catName)!.count!++;
             });
-            const extracted = Array.from(catMap.values());
-            setCategories(extracted);
-            if (extracted.length > 0) {
-              setSelectedCategory(extracted[0].category_id);
-            }
+            formattedCats = Array.from(catMap.values());
           }
+        }
+
+        // Filter out any existing playlist favorite categories to prevent duplicates
+        const cleanCats = formattedCats.filter(c => !isFavCategory(c));
+
+        if (favorites.length > 0) {
+          const favCat: ParsedCategory = {
+            category_id: 'favorites',
+            category_name: isRtl ? '⭐ المفضلة' : '⭐ Favorites',
+            count: favorites.length
+          };
+          formattedCats = [favCat, ...cleanCats];
+        } else {
+          formattedCats = cleanCats;
+        }
+
+        setCategories(formattedCats);
+        if (formattedCats.length > 0) {
+          setSelectedCategory(formattedCats[0].category_id);
         }
       } catch (e) {
         console.error('Failed to load categories:', e);
@@ -363,7 +387,7 @@ export default function LivePlayer({ onBack, settings, onUpdateSettings, userId,
       }
     };
     loadCategories();
-  }, [mediaType]);
+  }, [mediaType, favorites.length]);
 
   // Lazy load channels for the selected category
   useEffect(() => {
@@ -372,7 +396,14 @@ export default function LivePlayer({ onBack, settings, onUpdateSettings, userId,
     let isMounted = true;
     const loadChannels = async () => {
       try {
-        const rawCategoryChannels = await getChannelsByCategory(mediaType, selectedCategory, playlistId);
+        let rawCategoryChannels: any[] = [];
+        if (selectedCategory === 'favorites') {
+          const typeToLoad = mediaType === 'favorites' ? 'live' : mediaType;
+          const allChs = await getChannelsByPlaylistAndType(playlistId, typeToLoad as any);
+          rawCategoryChannels = allChs.filter((ch: any) => favorites.includes(String(ch.stream_id || ch.id)));
+        } else {
+          rawCategoryChannels = await getChannelsByCategory(mediaType, selectedCategory, playlistId);
+        }
         if (!isMounted) return;
         const categoryChannels = (rawCategoryChannels || []).map((ch: any) => ({
           ...ch,
@@ -386,7 +417,7 @@ export default function LivePlayer({ onBack, settings, onUpdateSettings, userId,
     };
     loadChannels();
     return () => { isMounted = false; };
-  }, [selectedCategory, mediaType, playlistId]);
+  }, [selectedCategory, mediaType, playlistId, favorites]);
 
   const [streamingHost, setStreamingHost] = useState<string>('');
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -852,7 +883,7 @@ export default function LivePlayer({ onBack, settings, onUpdateSettings, userId,
     }
   }, [reorderTarget]);
 
-  const [favorites, setFavorites] = useState<string[]>(() => getLocalFavoriteIds());
+ 
 
   // TV Remote OK Button Long-Press Detection Refs
   const okPressTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -866,15 +897,6 @@ export default function LivePlayer({ onBack, settings, onUpdateSettings, userId,
     const handleKeyDown = (e: KeyboardEvent) => {
       const key = e.key;
       const code = e.keyCode;
-
-      const now = Date.now();
-      if (now - lastDpadKeyTimeRef.current < 55) {
-        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(key) || (code >= 37 && code <= 40)) {
-          e.preventDefault();
-          return;
-        }
-      }
-      lastDpadKeyTimeRef.current = now;
 
       const isBackKey = key === 'Escape' || key === 'Backspace' || key === 'GoBack' || key === 'Back' ||
                         code === 10009 || code === 461 || code === 27 || code === 8;
@@ -1277,13 +1299,11 @@ export default function LivePlayer({ onBack, settings, onUpdateSettings, userId,
               const catButtons = document.querySelectorAll<HTMLElement>('[data-tv-pane="categories"]');
               const targetCat = catButtons[tvFocusedCatIndex.current] || catButtons[0];
               targetCat?.focus();
-              targetCat?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
             } else {
               const nextIdx = Math.max(0, curIdx - 1);
               tvFocusedChannelIndex.current = nextIdx;
               const el = document.querySelector<HTMLElement>(`[data-tv-pane="channels"][data-index="${nextIdx}"]`);
               el?.focus();
-              el?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
             }
           } else {
             // In LTR, Categories sidebar is on the LEFT. ArrowRight moves to next item in row/list.
@@ -1292,7 +1312,6 @@ export default function LivePlayer({ onBack, settings, onUpdateSettings, userId,
               tvFocusedChannelIndex.current = nextIdx;
               const el = document.querySelector<HTMLElement>(`[data-tv-pane="channels"][data-index="${nextIdx}"]`);
               el?.focus();
-              el?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
             } else {
               tvFocusedPane.current = 'player';
               const playerEl = document.querySelector<HTMLElement>('[data-tv-pane="player"]');
@@ -1309,13 +1328,11 @@ export default function LivePlayer({ onBack, settings, onUpdateSettings, userId,
               const catButtons = document.querySelectorAll<HTMLElement>('[data-tv-pane="categories"]');
               const targetCat = catButtons[tvFocusedCatIndex.current] || catButtons[0];
               targetCat?.focus();
-              targetCat?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
             } else {
               const nextIdx = Math.max(0, curIdx - 1);
               tvFocusedChannelIndex.current = nextIdx;
               const el = document.querySelector<HTMLElement>(`[data-tv-pane="channels"][data-index="${nextIdx}"]`);
               el?.focus();
-              el?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
             }
           } else {
             // In RTL, Categories sidebar is on the RIGHT. ArrowLeft moves to next item (leftwards).
@@ -1324,7 +1341,6 @@ export default function LivePlayer({ onBack, settings, onUpdateSettings, userId,
               tvFocusedChannelIndex.current = nextIdx;
               const el = document.querySelector<HTMLElement>(`[data-tv-pane="channels"][data-index="${nextIdx}"]`);
               el?.focus();
-              el?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
             } else {
               tvFocusedPane.current = 'player';
               const playerEl = document.querySelector<HTMLElement>('[data-tv-pane="player"]');
@@ -2031,30 +2047,30 @@ export default function LivePlayer({ onBack, settings, onUpdateSettings, userId,
   const favSet = useMemo(() => new Set(favorites), [favorites]);
 
   const visibleCategories = useMemo(() => {
-    const base = categories.filter(cat => 
-      !hiddenSet.has(cat.category_id) && 
-      !hiddenSet.has(cat.category_name) &&
-      cat.category_name !== 'جميع المجموعات' &&
-      cat.category_name !== 'All Groups' &&
-      cat.category_name !== 'ALL' &&
-      cat.category_name !== 'All'
-    );
-    if (favorites.length > 0) {
-      let favsCount = 0;
-      for (let i = 0; i < channels.length; i++) {
-        if (favSet.has(channels[i].stream_id)) favsCount++;
-      }
+    const cleanCats = categories.filter(cat => {
+      if (!cat) return false;
+      if (hiddenSet.has(cat.category_id) || hiddenSet.has(cat.category_name)) return false;
+      if (
+        cat.category_name === 'جميع المجموعات' ||
+        cat.category_name === 'All Groups' ||
+        cat.category_name === 'ALL' ||
+        cat.category_name === 'All'
+      ) return false;
+      if (isFavCategory(cat)) return false;
+      return true;
+    });
 
-      if (favsCount > 0) {
-        return [{
-          category_id: 'FAVORITES_INTERNAL',
-          category_name: isRtl ? 'المفضلة ★' : 'Favorites ★',
-          count: favsCount
-        }, ...base];
-      }
+    if (favorites.length > 0) {
+      const favCat: ParsedCategory = {
+        category_id: 'favorites',
+        category_name: isRtl ? '⭐ المفضلة' : '⭐ Favorites',
+        count: favorites.length
+      };
+      return [favCat, ...cleanCats];
     }
-    return base;
-  }, [categories, hiddenSet, favSet, favorites.length, channels, isRtl]);
+
+    return cleanCats;
+  }, [categories, hiddenSet, favorites.length, isRtl]);
 
   // Pre-index channels by category for O(1) lookup
   const channelsByCategory = useMemo(() => {
@@ -2073,10 +2089,9 @@ export default function LivePlayer({ onBack, settings, onUpdateSettings, userId,
 
     let result: ParsedChannel[] = [];
     
-    if (selectedCategory === 'FAVORITES_INTERNAL' || mediaType === 'favorites') {
-      for (let i = 0; i < channels.length; i++) {
-        if (favSet.has(channels[i].stream_id)) result.push(channels[i]);
-      }
+    if (selectedCategory === 'favorites' || selectedCategory === 'FAVORITES_INTERNAL' || mediaType === 'favorites') {
+      result = channels.filter(ch => favSet.has(String(ch.stream_id || (ch as any).id)) || favorites.includes(String(ch.stream_id || (ch as any).id)));
+      if (result.length === 0) result = channels;
     } else if (targetCategory) {
       result = channelsByCategory.get(targetCategory) || [];
       if (result.length === 0) {
@@ -2490,14 +2505,6 @@ export default function LivePlayer({ onBack, settings, onUpdateSettings, userId,
                 className={`w-full bg-zinc-950/80 border border-gold/40 focus:border-gold focus:ring-2 focus:ring-inset focus:ring-gold focus:ring-inset rounded-2xl py-2 ${isRtl ? 'pr-10 pl-4' : 'pl-10 pr-4'} text-xs sm:text-sm text-white placeholder-zinc-400 outline-none transition-all shadow-inner`}
               />
               <div className={`absolute ${isRtl ? 'left-2' : 'right-2'} top-1/2 -translate-y-1/2 flex items-center gap-1`}>
-                <button
-                  data-tv-focusable="true"
-                  onClick={() => setShowOcr(true)}
-                  className="p-1.5 bg-gold/10 hover:bg-gold/20 text-gold rounded-lg transition-all"
-                  title={t('ai_discovery')}
-                >
-                  <Sparkles size={14} className="animate-pulse" />
-                </button>
                 {search && (
                   <button
                     onClick={() => setSearch('')}
@@ -2585,15 +2592,18 @@ export default function LivePlayer({ onBack, settings, onUpdateSettings, userId,
                         isSelected={selectedCategory === cat.category_id}
                         onSelect={setSelectedCategory}
                         mediaType={mediaType}
-                        onReorder={mediaType === 'live' ? (item: any) => {
+                        onReorder={(item: any) => {
+                          const targetId = item.id || item.category_id;
+                          const targetIdx = item.index !== undefined ? item.index : item.realIdx;
+                          const targetName = item.name || item.category_name || 'Category';
                           setReorderTarget({
                             type: 'category',
-                            id: item.category_id,
-                            index: item.realIdx,
-                            name: item.name
+                            id: targetId,
+                            index: targetIdx,
+                            name: targetName
                           });
-                          setTargetPosInput(String(item.realIdx + 1));
-                        } : undefined}
+                          setTargetPosInput(String(targetIdx + 1));
+                        }}
                       />
                     ))}
                   </>

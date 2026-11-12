@@ -336,22 +336,22 @@ export default function AddPlaylistModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md select-none overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md select-none">
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        className={`w-full max-w-2xl bg-zinc-950 border border-gold/30 rounded-3xl shadow-[0_0_60px_rgba(212,175,55,0.15)] overflow-hidden flex flex-col ${isRtl ? 'font-cairo text-right' : 'text-left'}`}
+        className={`w-full max-w-2xl max-h-[88vh] sm:max-h-[92vh] bg-zinc-950 border border-gold/30 rounded-3xl shadow-[0_0_60px_rgba(212,175,55,0.15)] overflow-hidden flex flex-col ${isRtl ? 'font-cairo text-right' : 'text-left'}`}
       >
         {/* Header */}
-        <div className={`p-6 border-b border-white/10 flex items-center justify-between bg-gradient-to-r from-gold/10 via-transparent to-transparent ${isRtl ? 'flex-row-reverse' : ''}`}>
+        <div className={`p-4 sm:p-5 border-b border-white/10 flex items-center justify-between bg-gradient-to-r from-gold/10 via-transparent to-transparent shrink-0 ${isRtl ? 'flex-row-reverse' : ''}`}>
           <div className={`flex items-center gap-3 ${isRtl ? 'flex-row-reverse' : ''}`}>
-            <div className="p-3 bg-gold/20 rounded-2xl text-gold">
-              <Tv size={24} />
+            <div className="p-2.5 bg-gold/20 rounded-2xl text-gold">
+              <Tv size={22} />
             </div>
             <div>
-              <h2 className="text-xl font-black text-white uppercase tracking-wider">{t('add_playlist')}</h2>
-              <span className="text-xs text-gold font-bold">Achour TV System</span>
+              <h2 className="text-lg sm:text-xl font-black text-white uppercase tracking-wider">{t('add_playlist')}</h2>
+              <span className="text-[10px] sm:text-xs text-gold font-bold">Achour TV System</span>
             </div>
           </div>
           <div className={`flex items-center gap-2 ${isRtl ? 'flex-row-reverse' : ''}`}>
@@ -378,188 +378,197 @@ export default function AddPlaylistModal({
             </button>
             <button
               onClick={onClose}
-              className="p-2.5 rounded-xl text-zinc-400 hover:text-white hover:bg-white/10 transition-all"
+              className="p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/10 transition-all"
             >
-              <X size={20} />
+              <X size={18} />
             </button>
           </div>
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* Two Independent Server Cards: XTREAM CODES vs M3U PLAYLIST */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Card 1: XTREAM CODES API */}
-            <div
-              role="button"
-              tabIndex={0}
-              data-tv-focusable="true"
-              onClick={() => setTab('xtream')}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Select') setTab('xtream'); }}
-              className={`p-4.5 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between group outline-none focus:ring-4 focus:ring-inset focus:ring-gold ${
-                tab === 'xtream'
-                  ? 'border-gold bg-gold/15 shadow-[0_0_25px_rgba(212,175,55,0.25)] ring-2 ring-gold/40'
-                  : 'border-white/10 bg-black/50 hover:border-gold/40 hover:bg-white/5'
-              }`}
-            >
-              <div className={`flex items-center justify-between mb-3 ${isRtl ? 'flex-row-reverse' : ''}`}>
-                <div className={`p-3 rounded-xl transition-colors ${tab === 'xtream' ? 'bg-gold text-black shadow-md' : 'bg-white/10 text-gold'}`}>
-                  <Server size={22} />
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden min-h-0">
+          <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 no-scrollbar">
+            {/* Two Independent Server Cards: XTREAM CODES vs M3U PLAYLIST */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+              {/* Card 1: XTREAM CODES API */}
+              <div
+                role="button"
+                tabIndex={0}
+                data-tv-focusable="true"
+                onClick={() => setTab('xtream')}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Select') setTab('xtream'); }}
+                className={`p-3.5 sm:p-4 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between group outline-none focus:ring-4 focus:ring-inset focus:ring-gold ${
+                  tab === 'xtream'
+                    ? 'border-gold bg-gold/15 shadow-[0_0_25px_rgba(212,175,55,0.25)] ring-2 ring-gold/40'
+                    : 'border-white/10 bg-black/50 hover:border-gold/40 hover:bg-white/5'
+                }`}
+              >
+                <div className={`flex items-center justify-between mb-2 ${isRtl ? 'flex-row-reverse' : ''}`}>
+                  <div className={`p-2.5 rounded-xl transition-colors ${tab === 'xtream' ? 'bg-gold text-black shadow-md' : 'bg-white/10 text-gold'}`}>
+                    <Server size={20} />
+                  </div>
+                  {tab === 'xtream' && (
+                    <span className="px-2 py-0.5 bg-gold text-black font-black text-[9px] uppercase rounded-lg shadow-sm">
+                      {isRtl ? 'مُحدد' : 'Selected'}
+                    </span>
+                  )}
                 </div>
-                {tab === 'xtream' && (
-                  <span className="px-2.5 py-1 bg-gold text-black font-black text-[10px] uppercase rounded-lg shadow-sm">
-                    {isRtl ? 'مُحدد' : 'Selected'}
-                  </span>
-                )}
+                <div>
+                  <h3 className={`text-xs sm:text-sm font-black uppercase tracking-wider text-white group-hover:text-gold ${isRtl ? 'text-right' : 'text-left'}`}>
+                    {t('xtream_codes')}
+                  </h3>
+                  <p className={`text-[10px] sm:text-xs text-zinc-400 mt-0.5 leading-snug ${isRtl ? 'text-right' : 'text-left'}`}>
+                    {isRtl 
+                      ? 'سيرفر اكستريم كود المباشر - يتطلب عنوان المضيف واسم المستخدم وكلمة المرور'
+                      : 'Xtream Codes API server connection using host URL, username & password'}
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className={`text-sm font-black uppercase tracking-wider text-white group-hover:text-gold ${isRtl ? 'text-right' : 'text-left'}`}>
-                  {t('xtream_codes')}
-                </h3>
-                <p className={`text-xs text-zinc-400 mt-1 leading-snug ${isRtl ? 'text-right' : 'text-left'}`}>
-                  {isRtl 
-                    ? 'سيرفر اكستريم كود المباشر - يتطلب عنوان المضيف واسم المستخدم وكلمة المرور'
-                    : 'Xtream Codes API server connection using host URL, username & password'}
-                </p>
+
+              {/* Card 2: M3U PLAYLIST & FILE */}
+              <div
+                role="button"
+                tabIndex={0}
+                data-tv-focusable="true"
+                onClick={() => setTab('m3u')}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Select') setTab('m3u'); }}
+                className={`p-3.5 sm:p-4 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between group outline-none focus:ring-4 focus:ring-inset focus:ring-gold ${
+                  tab === 'm3u'
+                    ? 'border-gold bg-gold/15 shadow-[0_0_25px_rgba(212,175,55,0.25)] ring-2 ring-gold/40'
+                    : 'border-white/10 bg-black/50 hover:border-gold/40 hover:bg-white/5'
+                }`}
+              >
+                <div className={`flex items-center justify-between mb-2 ${isRtl ? 'flex-row-reverse' : ''}`}>
+                  <div className={`p-2.5 rounded-xl transition-colors ${tab === 'm3u' ? 'bg-gold text-black shadow-md' : 'bg-white/10 text-gold'}`}>
+                    <Globe size={20} />
+                  </div>
+                  {tab === 'm3u' && (
+                    <span className="px-2 py-0.5 bg-gold text-black font-black text-[9px] uppercase rounded-lg shadow-sm">
+                      {isRtl ? 'مُحدد' : 'Selected'}
+                    </span>
+                  )}
+                </div>
+                <div>
+                  <h3 className={`text-xs sm:text-sm font-black uppercase tracking-wider text-white group-hover:text-gold ${isRtl ? 'text-right' : 'text-left'}`}>
+                    {isRtl ? 'رابط M3U أو ملف قنوات' : 'M3U Playlist & File'}
+                  </h3>
+                  <p className={`text-[10px] sm:text-xs text-zinc-400 mt-0.5 leading-snug ${isRtl ? 'text-right' : 'text-left'}`}>
+                    {isRtl 
+                      ? 'رابط مباشر M3U / M3U8 أو رفع ملف قنوات مخزن على جهازك'
+                      : 'Direct M3U/M3U8 URL or upload a channel playlist file'}
+                  </p>
+                </div>
               </div>
             </div>
 
-            {/* Card 2: M3U PLAYLIST & FILE */}
-            <div
-              role="button"
-              tabIndex={0}
-              data-tv-focusable="true"
-              onClick={() => setTab('m3u')}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Select') setTab('m3u'); }}
-              className={`p-4.5 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between group outline-none focus:ring-4 focus:ring-inset focus:ring-gold ${
-                tab === 'm3u'
-                  ? 'border-gold bg-gold/15 shadow-[0_0_25px_rgba(212,175,55,0.25)] ring-2 ring-gold/40'
-                  : 'border-white/10 bg-black/50 hover:border-gold/40 hover:bg-white/5'
-              }`}
-            >
-              <div className={`flex items-center justify-between mb-3 ${isRtl ? 'flex-row-reverse' : ''}`}>
-                <div className={`p-3 rounded-xl transition-colors ${tab === 'm3u' ? 'bg-gold text-black shadow-md' : 'bg-white/10 text-gold'}`}>
-                  <Globe size={22} />
-                </div>
-                {tab === 'm3u' && (
-                  <span className="px-2.5 py-1 bg-gold text-black font-black text-[10px] uppercase rounded-lg shadow-sm">
-                    {isRtl ? 'مُحدد' : 'Selected'}
-                  </span>
-                )}
-              </div>
-              <div>
-                <h3 className={`text-sm font-black uppercase tracking-wider text-white group-hover:text-gold ${isRtl ? 'text-right' : 'text-left'}`}>
-                  {isRtl ? 'رابط M3U أو ملف قنوات' : 'M3U Playlist & File'}
-                </h3>
-                <p className={`text-xs text-zinc-400 mt-1 leading-snug ${isRtl ? 'text-right' : 'text-left'}`}>
-                  {isRtl 
-                    ? 'رابط مباشر M3U / M3U8 أو رفع ملف قنوات مخزن على جهازك'
-                    : 'Direct M3U/M3U8 URL or upload a channel playlist file'}
-                </p>
-              </div>
+            {/* Playlist Name Field */}
+            <div className="space-y-1">
+              <label className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
+                {isRtl ? 'اسم القائمة' : 'Playlist Name'}
+              </label>
+              <input
+                type="text"
+                data-tv-focusable="true"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder={isRtl ? 'مثال: قائمة رويال بريميوم' : 'e.g. My Premium IPTV'}
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white focus:border-gold/50 outline-none transition-all"
+              />
             </div>
-          </div>
 
-          {/* Playlist Name Field */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
-              {isRtl ? 'اسم القائمة' : 'Playlist Name'}
-            </label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder={isRtl ? 'مثال: قائمة رويال بريميوم' : 'e.g. My Premium IPTV'}
-              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-gold/50 outline-none transition-all"
-            />
-          </div>
-
-          {/* Xtream Tab */}
-          {tab === 'xtream' && (
-            <div className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider">{t('host')}</label>
-                <input
-                  type="text"
-                  value={host}
-                  onChange={(e) => setHost(e.target.value)}
-                  placeholder="http://example.com:8080"
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-gold/50 outline-none transition-all font-mono"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider">{t('username')}</label>
+            {/* Xtream Tab */}
+            {tab === 'xtream' && (
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">{t('host')}</label>
                   <input
                     type="text"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    placeholder={t('username')}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-gold/50 outline-none transition-all font-mono"
+                    data-tv-focusable="true"
+                    value={host}
+                    onChange={(e) => setHost(e.target.value)}
+                    placeholder="http://example.com:8080"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white focus:border-gold/50 outline-none transition-all font-mono"
                     required
                   />
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider">{t('password')}</label>
-                  <input
-                    type="text"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder={t('password')}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-gold/50 outline-none transition-all font-mono"
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">{t('username')}</label>
+                    <input
+                      type="text"
+                      data-tv-focusable="true"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      placeholder={t('username')}
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white focus:border-gold/50 outline-none transition-all font-mono"
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">{t('password')}</label>
+                    <input
+                      type="text"
+                      data-tv-focusable="true"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder={t('password')}
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white focus:border-gold/50 outline-none transition-all font-mono"
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* M3U Tab */}
+            {tab === 'm3u' && (
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">{t('m3u_url')}</label>
+                  <textarea
+                    rows={3}
+                    data-tv-focusable="true"
+                    value={m3uUrl}
+                    onChange={(e) => setM3uUrl(e.target.value)}
+                    placeholder={isRtl ? 'ضع رابط M3U هنا (http://...)' : 'Paste M3U URL (http://...)'}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white focus:border-gold/50 outline-none transition-all font-mono resize-none"
                     required
                   />
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* M3U Tab */}
-          {tab === 'm3u' && (
-            <div className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider">{t('m3u_url')}</label>
-                <textarea
-                  rows={4}
-                  value={m3uUrl}
-                  onChange={(e) => setM3uUrl(e.target.value)}
-                  placeholder={isRtl ? 'ضع رابط M3U هنا (http://...)' : 'Paste M3U URL (http://...)'}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs text-white focus:border-gold/50 outline-none transition-all font-mono resize-none"
-                  required
-                />
+            {error && (
+              <div className="p-2.5 bg-red-500/10 border border-red-500/30 rounded-xl flex items-center gap-2 text-red-400 text-xs font-bold">
+                <AlertCircle size={15} className="shrink-0" />
+                <span>{error}</span>
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
-          {error && (
-            <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-xl flex items-center gap-2 text-red-400 text-xs font-bold">
-              <AlertCircle size={16} className="shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
-
-          {/* Action Buttons */}
-          <div className={`flex gap-3 pt-2 ${isRtl ? 'flex-row-reverse' : ''}`}>
+          {/* Sticky Action Buttons Footer */}
+          <div className={`p-4 border-t border-white/10 bg-zinc-950/95 flex gap-3 shrink-0 z-30 ${isRtl ? 'flex-row-reverse' : ''}`}>
             <button
               type="button"
+              data-tv-focusable="true"
               onClick={onClose}
-              className="flex-1 py-3.5 bg-white/5 hover:bg-white/10 text-zinc-300 font-bold rounded-xl text-sm transition-all"
+              className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-zinc-300 font-bold rounded-xl text-xs sm:text-sm transition-all focus:ring-2 focus:ring-gold"
             >
               {t('cancel')}
             </button>
             <button
               type="submit"
+              data-tv-focusable="true"
               disabled={loading}
-              className="flex-1 py-3.5 bg-gold hover:bg-gold/90 text-black font-black uppercase tracking-wider rounded-xl text-sm transition-all shadow-lg shadow-gold/20 flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
+              className="flex-1 py-3 bg-gold hover:bg-gold/90 text-black font-black uppercase tracking-wider rounded-xl text-xs sm:text-sm transition-all shadow-lg shadow-gold/20 flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50 focus:ring-2 focus:ring-gold"
             >
               {loading ? (
-                <div className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
               ) : (
                 <>
-                  <Check size={18} />
+                  <Check size={16} />
                   <span>{t('save')}</span>
                 </>
               )}
