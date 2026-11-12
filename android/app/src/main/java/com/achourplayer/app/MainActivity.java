@@ -14,9 +14,8 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-
         registerPlugin(NativePlayerPlugin.class);
+        super.onCreate(savedInstanceState);
 
         enableImmersiveMode();
 
