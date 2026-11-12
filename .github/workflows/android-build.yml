@@ -1,3 +1,4 @@
+
 name: Build Android APK
 
 on:
@@ -44,22 +45,15 @@ jobs:
         run: |
           echo "Checking Android Gradle files..."
           ls -la android
-          test -f android/gradlew || {
-            echo "ERROR: android/gradlew is missing"
-            exit 1
-          }
+          test -f android/gradlew
           test -f android/gradle/wrapper/gradle-wrapper.jar
           test -f android/gradle/wrapper/gradle-wrapper.properties
           chmod +x android/gradlew
-          ls -l android/gradlew
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
 
       - name: Build Android APK
         run: |
           cd android
-          ./gradlew assembleDebug
+          ./gradlew --no-daemon --stacktrace assembleDebug
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
