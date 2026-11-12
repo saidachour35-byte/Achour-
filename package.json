@@ -1,3 +1,4 @@
+
 {
   "name": "react-example",
   "private": true,
@@ -12,9 +13,9 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
-    "@capacitor/app": "^8.1.2",
+    "@capacitor/app": "^6.0.2",
     "@capacitor/core": "^6.1.2",
-    "@capacitor/status-bar": "^8.0.4",
+    "@capacitor/status-bar": "^6.0.2",
     "@google/genai": "^2.4.0",
     "@tailwindcss/vite": "^4.3.3",
     "@types/cors": "^2.8.19",
