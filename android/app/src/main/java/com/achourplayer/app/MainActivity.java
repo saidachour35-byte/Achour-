@@ -1,3 +1,4 @@
+
 package com.achourplayer.app;
 
 import android.os.Build;
@@ -14,13 +15,13 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
-        registerPlugin(NativePlayerPlugin.class);
         super.onCreate(savedInstanceState);
 
         enableImmersiveMode();
 
         try {
             WebView webView = this.bridge.getWebView();
+
             if (webView != null) {
                 webView.addJavascriptInterface(
                     new AchourNativeBridge(this),
@@ -28,7 +29,9 @@ public class MainActivity extends BridgeActivity {
                 );
 
                 WebSettings settings = webView.getSettings();
-                settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+                settings.setMixedContentMode(
+                    WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+                );
                 settings.setMediaPlaybackRequiresUserGesture(false);
                 settings.setAllowFileAccess(true);
                 settings.setAllowContentAccess(true);
@@ -45,17 +48,27 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
-        if (hasFocus) enableImmersiveMode();
+
+        if (hasFocus) {
+            enableImmersiveMode();
+        }
     }
 
     private void enableImmersiveMode() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            WindowInsetsController controller = getWindow().getInsetsController();
+            WindowInsetsController controller =
+                getWindow().getInsetsController();
+
             if (controller != null) {
-                controller.hide(WindowInsets.Type.statusBars() |
-                    WindowInsets.Type.navigationBars());
+                controller.hide(
+                    WindowInsets.Type.statusBars()
+                    | WindowInsets.Type.navigationBars()
+                );
+
                 controller.setSystemBarsBehavior(
-                    WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+                    WindowInsetsController
+                        .BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                );
             }
         } else {
             getWindow().getDecorView().setSystemUiVisibility(
