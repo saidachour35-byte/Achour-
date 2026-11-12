@@ -22,6 +22,11 @@ public class MainActivity extends BridgeActivity {
         try {
             WebView webView = this.bridge.getWebView();
             if (webView != null) {
+                webView.addJavascriptInterface(
+                    new AchourNativeBridge(this),
+                    "AchourNative"
+                );
+
                 WebSettings settings = webView.getSettings();
                 settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
                 settings.setMediaPlaybackRequiresUserGesture(false);
