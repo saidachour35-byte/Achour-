@@ -1,3 +1,4 @@
+
 package com.achourplayer.app;
 
 import android.os.Bundle;
@@ -25,6 +26,7 @@ import java.util.Iterator;
 import java.util.Map;
 
 public class NativePlayerActivity extends AppCompatActivity {
+
     public static final String EXTRA_URL = "achour.extra.URL";
     public static final String EXTRA_OPTIONS = "achour.extra.OPTIONS";
 
@@ -34,6 +36,7 @@ public class NativePlayerActivity extends AppCompatActivity {
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         hideSystemUi();
 
@@ -108,30 +111,9 @@ public class NativePlayerActivity extends AppCompatActivity {
                 .setTitle(title)
                 .build();
 
-        
-}<activity
-    android:name=".NativePlayerActivity"
-    android:exported="false"
-    android:configChanges="orientation|screenSize|keyboardHidden"
-    android:screenOrientation="sensorLandscape"
-   package com.achourplayer.app;
-
-import android.content.Intent;
-
-import com.getcapacitor.Plugin;
-import com.getcapacitor.PluginCall;
-import com.getcapacitor.PluginMethod;
-import com.getcapacitor.annotation.CapacitorPlugin;
-
-@CapacitorPlugin(name = "NativePlayer")
-public class NativePlayerPlugin extends Plugin {
-
-    @PluginMethod
-    public void play(PluginCall call) {
-        String url = call.getString("url");            player.setMediaItem(mediaItem.setMediaMetadata(metadata).build());
-            player.prepare();
-            player.play();
-        }
+        player.setMediaItem(mediaItem.setMediaMetadata(metadata).build());
+        player.prepare();
+        player.play();
     }
 
     @Override
@@ -173,22 +155,3 @@ public class NativePlayerPlugin extends Plugin {
         }
     }
 }
-
-        if (url == null || url.trim().isEmpty()) {
-            call.reject("Video URL is required");
-            return;
-        }
-
-        Intent intent = new Intent(
-            getContext(),
-            NativePlayerActivity.class
-        );
-
-        intent.putExtra("url", url);
-
-        getActivity().runOnUiThread(() -> {
-            getActivity().startActivity(intent);
-            call.resolve();
-        });
-    }
-} android:theme="@style/AppTheme.NoActionBarLaunch" />
