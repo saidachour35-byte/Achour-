@@ -1,6 +1,7 @@
 package com.achourplayer.app;
 
 import android.content.Intent;
+
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
@@ -13,13 +14,13 @@ public class NativePlayerPlugin extends Plugin {
     public void play(PluginCall call) {
         String url = call.getString("url");
 
-        if (url == null || url.isEmpty()) {
+        if (url == null || url.trim().isEmpty()) {
             call.reject("URL is required");
             return;
         }
 
         Intent intent = new Intent(getContext(), NativePlayerActivity.class);
-        intent.putExtra("EXTRA_URL", url);
+        intent.putExtra(NativePlayerActivity.EXTRA_URL, url);
 
         getActivity().runOnUiThread(() -> {
             getActivity().startActivity(intent);
