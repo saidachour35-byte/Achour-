@@ -372,7 +372,7 @@ export default function SplashScreen({
           className="text-center mb-6 sm:mb-8"
         >
           <h1 className="text-2xl sm:text-4xl md:text-5xl font-black uppercase tracking-[0.25em] text-white text-shadow-gold">
-            ACHOUR <span className="text-gold">PLAYER</span>
+            <span style={{ color: theme.primary }}>ACHOUR</span> <span className="text-gold">PLAYER</span>
           </h1>
         </motion.div>
 

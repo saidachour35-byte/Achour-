@@ -129,11 +129,15 @@ const ClockDisplay = React.memo(({ settings, isRtl }: { settings: AppSettings, i
 const ExtractionProgressModal = ({ 
   progress, 
   playlistName, 
-  language 
+  language,
+  onClose,
+  onRetry
 }: { 
   progress: ExtractionProgress; 
   playlistName: string; 
   language: any;
+  onClose: () => void;
+  onRetry?: () => void;
 }) => {
   const { stage, percent, message, counts } = progress;
   const { t, isRtl } = useI18n(language);
@@ -156,6 +160,9 @@ const ExtractionProgressModal = ({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
+      role="dialog"
+      aria-modal="true"
+      data-tv-modal="true"
       className={`fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 sm:p-6 ${isRtl ? 'font-cairo' : 'font-sans'}`}
     >
       <motion.div 
@@ -163,6 +170,17 @@ const ExtractionProgressModal = ({
         animate={{ scale: 1, y: 0 }}
         className="w-full max-w-lg bg-[#141418] border-2 border-gold/40 rounded-[2.5rem] p-8 shadow-[0_0_50px_rgba(212,175,55,0.2)] text-center relative overflow-hidden"
       >
+        {/* Close (X) button */}
+        <button
+          onClick={onClose}
+          data-tv-focusable="true"
+          tabIndex={0}
+          className={`absolute top-5 ${isRtl ? 'left-5' : 'right-5'} w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white flex items-center justify-center transition-all focus:ring-2 focus:ring-inset focus:ring-gold z-30 cursor-pointer`}
+          title={isRtl ? 'إغلاق' : 'Close'}
+        >
+          <X className="w-5 h-5" />
+        </button>
+
         {/* Decorative Background Elements */}
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-gold to-transparent opacity-50" />
         <div className="absolute -top-24 -right-24 w-48 h-48 bg-gold/5 rounded-full blur-3xl" />
@@ -229,8 +247,8 @@ const ExtractionProgressModal = ({
               animate={{ opacity: 1, y: 0 }}
               data-tv-focusable="true"
               autoFocus
-              className="w-full py-4 bg-gold text-black font-black text-lg rounded-2xl shadow-[0_4px_15px_rgba(212,175,55,0.4)] hover:scale-[1.02] active:scale-[0.98] transition-all uppercase mt-4 focus:outline-none focus:ring-4 focus:ring-white cursor-pointer"
-              onClick={() => window.location.reload()}
+              className="w-full py-4 bg-gold text-black font-black text-lg rounded-2xl shadow-[0_4px_15px_rgba(212,175,55,0.4)] hover:scale-[1.02] active:scale-[0.98] transition-all uppercase mt-4 focus:outline-none focus:ring-4 focus:ring-inset focus:ring-white cursor-pointer"
+              onClick={onClose}
             >
               {t('start_now')}
             </motion.button>
@@ -240,8 +258,14 @@ const ExtractionProgressModal = ({
             <button
               data-tv-focusable="true"
               autoFocus
-              className="w-full py-4 bg-zinc-800 text-white font-black text-lg rounded-2xl border border-white/10 hover:bg-zinc-700 transition-all uppercase mt-4 focus:outline-none focus:ring-4 focus:ring-gold cursor-pointer"
-              onClick={() => window.location.reload()}
+              className="w-full py-4 bg-zinc-800 text-white font-black text-lg rounded-2xl border border-white/10 hover:bg-zinc-700 transition-all uppercase mt-4 focus:outline-none focus:ring-4 focus:ring-inset focus:ring-gold cursor-pointer"
+              onClick={() => {
+                if (onRetry) {
+                  onRetry();
+                } else {
+                  onClose();
+                }
+              }}
             >
               {t('retry')}
             </button>
@@ -500,6 +524,8 @@ export default function Dashboard({ userId, settings, onUpdateSettings, onTrigge
 
   const handleExitApp = () => {
     setShowExitModal(false);
+    
+    // Try Capacitor
     try {
       const capApp = (window as any).Capacitor?.Plugins?.App;
       if (capApp && typeof capApp.exitApp === 'function') {
@@ -508,24 +534,31 @@ export default function Dashboard({ userId, settings, onUpdateSettings, onTrigge
       }
     } catch (e) {}
 
+    // Try Native JSBridge
     const native = (window as any).AchourNative || (window as any).Android || (window as any).JSBridge;
     if (native && typeof native.exitApp === 'function') {
       native.exitApp();
       return;
     }
 
+    // Try Cordova
     if ((navigator as any).app && typeof (navigator as any).app.exitApp === 'function') {
       (navigator as any).app.exitApp();
       return;
     }
-
+    
+    // Try Tizen
     try { (window as any).tizen?.application?.getCurrentApplication()?.exit(); return; } catch(e){}
+    
+    // Try webOS
     try { (window as any).webOS?.window?.close(); return; } catch(e){}
 
+    // Fallback for Web
     if (window.history.length > 1) {
       window.history.back();
     } else {
       window.close();
+      window.location.href = 'about:blank';
     }
   };
 
@@ -788,7 +821,7 @@ export default function Dashboard({ userId, settings, onUpdateSettings, onTrigge
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                       onClick={() => setCurrentView('live')}
-                      className="cursor-pointer glass-card p-6 rounded-3xl border-2 border-gold/60 shadow-[0_0_30px_rgba(212,175,55,0.25)] flex flex-col justify-between relative overflow-hidden group bg-gradient-to-br from-gold/30 via-zinc-900 to-black text-white focus:outline-none focus:ring-4 focus:ring-gold min-h-[220px]"
+                      className="cursor-pointer glass-card p-6 rounded-3xl border-2 border-gold/60 shadow-[0_0_30px_rgba(212,175,55,0.25)] flex flex-col justify-between relative overflow-hidden group bg-gradient-to-br from-gold/30 via-zinc-900 to-black text-white focus:outline-none focus:ring-4 focus:ring-inset focus:ring-gold focus:ring-inset min-h-[220px]"
                     >
                       <div className="flex items-center justify-between z-10">
                         <span className="px-3 py-1 bg-red-600/30 text-red-300 font-black text-[10px] uppercase tracking-wider rounded-full flex items-center gap-1.5 border border-red-500/40">
@@ -820,7 +853,7 @@ export default function Dashboard({ userId, settings, onUpdateSettings, onTrigge
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                       onClick={() => setCurrentView('movies')}
-                      className="cursor-pointer glass-card p-6 rounded-3xl border-2 border-white/20 hover:border-gold/60 shadow-xl flex flex-col justify-between relative overflow-hidden group bg-gradient-to-br from-purple-900/30 via-zinc-900 to-black text-white focus:outline-none focus:ring-4 focus:ring-gold min-h-[220px]"
+                      className="cursor-pointer glass-card p-6 rounded-3xl border-2 border-white/20 hover:border-gold/60 shadow-xl flex flex-col justify-between relative overflow-hidden group bg-gradient-to-br from-purple-900/30 via-zinc-900 to-black text-white focus:outline-none focus:ring-4 focus:ring-inset focus:ring-gold focus:ring-inset min-h-[220px]"
                     >
                       <div className="flex items-center justify-between z-10">
                         <span className="px-3 py-1 bg-purple-500/20 text-purple-300 font-black text-[10px] uppercase tracking-wider rounded-full flex items-center gap-1.5 border border-purple-500/30">
@@ -874,7 +907,7 @@ export default function Dashboard({ userId, settings, onUpdateSettings, onTrigge
                               tabIndex={0}
                               whileHover={{ x: isRtl ? -3 : 3 }}
                               onClick={item.action}
-                              className="w-full p-2 rounded-xl border border-white/5 hover:border-gold/40 bg-black/40 hover:bg-gold/15 flex items-center gap-2.5 transition-all group text-left rtl:text-right"
+                              className="w-full p-2 rounded-xl border border-white/5 hover:border-gold/40 bg-black/40 hover:bg-gold/15 flex items-center gap-2.5 transition-all group text-left rtl:text-right focus:outline-none focus:ring-2 focus:ring-inset focus:ring-gold focus:ring-inset"
                             >
                               <div className="p-1.5 rounded-lg bg-gold/20 text-gold group-hover:scale-105 transition-transform">
                                 <IconComp className="w-4 h-4" />
@@ -891,7 +924,7 @@ export default function Dashboard({ userId, settings, onUpdateSettings, onTrigge
                         data-tv-focusable="true"
                         tabIndex={0}
                         onClick={() => setShowExitModal(true)}
-                        className="w-full p-2 rounded-xl border border-red-500/20 bg-red-950/20 hover:bg-red-900/40 text-red-400 font-bold text-xs uppercase flex items-center justify-center gap-1.5 transition-all mt-2 cursor-pointer focus:outline-none focus:ring-2 focus:ring-red-400"
+                        className="w-full p-2 rounded-xl border border-red-500/20 bg-red-950/20 hover:bg-red-900/40 text-red-400 font-bold text-xs uppercase flex items-center justify-center gap-1.5 transition-all mt-2 cursor-pointer focus:outline-none focus:ring-2 focus:ring-inset focus:ring-red-400"
                       >
                         <LogOut size={14} />
                         <span>{t('exit_app')}</span>
@@ -1370,7 +1403,7 @@ export default function Dashboard({ userId, settings, onUpdateSettings, onTrigge
                             whileHover={{ scale: 1.15, y: -4 }}
                             whileTap={{ scale: 0.95 }}
                             onClick={dock.action}
-                            className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-white/10 hover:bg-gold hover:text-black text-white flex flex-col items-center justify-center transition-all shadow-md group relative focus:ring-4 focus:ring-gold"
+                            className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-white/10 hover:bg-gold hover:text-black text-white flex flex-col items-center justify-center transition-all shadow-md group relative focus:ring-4 focus:ring-inset focus:ring-gold"
                             title={dock.label}
                           >
                             <DockIcon className="w-6 h-6 sm:w-7 sm:h-7" />
@@ -1576,7 +1609,7 @@ export default function Dashboard({ userId, settings, onUpdateSettings, onTrigge
                           role="button"
                           whileHover={{ scale: 1.02, x: isRtl ? -6 : 6 }} 
                           onClick={row.action} 
-                          className={`cursor-pointer p-3 sm:p-3.5 rounded-xl sm:rounded-2xl border-2 ${row.color} glass-card flex items-center justify-between`}
+                          className={`cursor-pointer p-3 sm:p-3.5 rounded-xl sm:rounded-2xl border-2 ${row.color} glass-card flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-inset focus:ring-gold focus:ring-inset`}
                         >
                           <div className="flex items-center gap-3">
                             <RowIcon className="w-6 h-6 sm:w-7 sm:h-7 text-gold" />
@@ -1602,7 +1635,7 @@ export default function Dashboard({ userId, settings, onUpdateSettings, onTrigge
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                       onClick={() => setCurrentView('live')}
-                      className="sm:col-span-7 cursor-pointer glass-card p-5 sm:p-6 rounded-3xl border-2 border-gold/60 shadow-[0_10px_30px_rgba(0,0,0,0.6)] bg-gradient-to-br from-gold/25 via-black/80 to-black flex flex-col justify-between group relative overflow-hidden min-h-[180px] sm:min-h-[220px] focus:outline-none focus:ring-4 focus:ring-gold focus:scale-105"
+                      className="sm:col-span-7 cursor-pointer glass-card p-5 sm:p-6 rounded-3xl border-2 border-gold/60 shadow-[0_10px_30px_rgba(0,0,0,0.6)] bg-gradient-to-br from-gold/25 via-black/80 to-black flex flex-col justify-between group relative overflow-hidden min-h-[180px] sm:min-h-[220px] focus:outline-none focus:ring-4 focus:ring-inset focus:ring-gold focus:ring-inset focus:scale-105"
                     >
                       <div className="flex items-center justify-between z-10">
                         <div className="flex items-center gap-2">
@@ -1643,7 +1676,7 @@ export default function Dashboard({ userId, settings, onUpdateSettings, onTrigge
                         whileHover={{ scale: 1.03 }}
                         whileTap={{ scale: 0.97 }}
                         onClick={() => setCurrentView('movies')}
-                        className="glass-card p-4 rounded-3xl border border-gold/40 hover:border-gold focus:outline-none focus:ring-4 focus:ring-gold focus:scale-105 flex flex-col items-center justify-center text-center group bg-black/60 shadow-lg min-h-[100px]"
+                        className="glass-card p-4 rounded-3xl border border-gold/40 hover:border-gold focus:outline-none focus:ring-4 focus:ring-inset focus:ring-gold focus:scale-105 flex flex-col items-center justify-center text-center group bg-black/60 shadow-lg min-h-[100px]"
                       >
                         <div className="w-10 h-10 mb-2 p-2 rounded-xl bg-gold/15 text-gold group-hover:scale-110 transition-transform">
                           <Icons.Filme className="w-full h-full" strokeWidth={1.5} />
@@ -1660,7 +1693,7 @@ export default function Dashboard({ userId, settings, onUpdateSettings, onTrigge
                         whileHover={{ scale: 1.03 }}
                         whileTap={{ scale: 0.97 }}
                         onClick={() => setCurrentView('series')}
-                        className="glass-card p-4 rounded-3xl border border-gold/40 hover:border-gold focus:outline-none focus:ring-4 focus:ring-gold focus:scale-105 flex flex-col items-center justify-center text-center group bg-black/60 shadow-lg min-h-[100px]"
+                        className="glass-card p-4 rounded-3xl border border-gold/40 hover:border-gold focus:outline-none focus:ring-4 focus:ring-inset focus:ring-gold focus:scale-105 flex flex-col items-center justify-center text-center group bg-black/60 shadow-lg min-h-[100px]"
                       >
                         <div className="w-10 h-10 mb-2 p-2 rounded-xl bg-gold/15 text-gold group-hover:scale-110 transition-transform">
                           <Icons.Serie className="w-full h-full" strokeWidth={1.5} />
@@ -1677,7 +1710,7 @@ export default function Dashboard({ userId, settings, onUpdateSettings, onTrigge
                         whileHover={{ scale: 1.03 }}
                         whileTap={{ scale: 0.97 }}
                         onClick={() => setCurrentView('add')}
-                        className="glass-card p-4 rounded-3xl border border-white/20 hover:border-gold focus:outline-none focus:ring-4 focus:ring-gold focus:scale-105 flex flex-col items-center justify-center text-center group bg-black/60 shadow-lg min-h-[100px]"
+                        className="glass-card p-4 rounded-3xl border border-white/20 hover:border-gold focus:outline-none focus:ring-4 focus:ring-inset focus:ring-gold focus:scale-105 flex flex-col items-center justify-center text-center group bg-black/60 shadow-lg min-h-[100px]"
                       >
                         <div className="w-10 h-10 mb-2 p-2 rounded-xl bg-white/10 text-gold group-hover:scale-110 transition-transform">
                           <Icons.Playlist className="w-full h-full" strokeWidth={1.5} />
@@ -1694,7 +1727,7 @@ export default function Dashboard({ userId, settings, onUpdateSettings, onTrigge
                         whileHover={{ scale: 1.03 }}
                         whileTap={{ scale: 0.97 }}
                         onClick={() => setCurrentView('settings')}
-                        className="glass-card p-4 rounded-3xl border border-gold/40 hover:border-gold focus:outline-none focus:ring-4 focus:ring-gold focus:scale-105 flex flex-col items-center justify-center text-center group bg-gold/15 shadow-lg min-h-[100px]"
+                        className="glass-card p-4 rounded-3xl border border-gold/40 hover:border-gold focus:outline-none focus:ring-4 focus:ring-inset focus:ring-gold focus:scale-105 flex flex-col items-center justify-center text-center group bg-gold/15 shadow-lg min-h-[100px]"
                       >
                         <div className="w-10 h-10 mb-2 p-2 rounded-xl bg-gold text-black group-hover:rotate-45 transition-transform shadow-md">
                           <Settings className="w-full h-full" strokeWidth={1.8} />
@@ -1737,7 +1770,7 @@ export default function Dashboard({ userId, settings, onUpdateSettings, onTrigge
                               whileHover={{ x: isRtl ? -4 : 4 }}
                               whileTap={{ scale: 0.98 }}
                               onClick={btn.action}
-                              className="w-full p-2.5 rounded-2xl border border-white/10 hover:border-gold/60 focus:outline-none focus:ring-4 focus:ring-gold bg-black/50 hover:bg-gold/20 flex items-center justify-between transition-all group"
+                              className="w-full p-2.5 rounded-2xl border border-white/10 hover:border-gold/60 focus:outline-none focus:ring-4 focus:ring-inset focus:ring-gold bg-black/50 hover:bg-gold/20 flex items-center justify-between transition-all group"
                             >
                               <div className="flex items-center gap-3">
                                 <div className="p-2 rounded-xl bg-gold/20 text-gold group-hover:scale-110 transition-transform">
@@ -1759,7 +1792,7 @@ export default function Dashboard({ userId, settings, onUpdateSettings, onTrigge
                         data-tv-focusable="true"
                         tabIndex={0}
                         onClick={() => setShowExitModal(true)}
-                        className="w-full py-2.5 px-3 rounded-2xl border border-red-500/30 bg-red-950/25 hover:bg-red-900/50 text-red-400 font-bold text-xs uppercase flex items-center justify-center gap-2 transition-all mt-2 cursor-pointer focus:outline-none focus:ring-2 focus:ring-red-400"
+                        className="w-full py-2.5 px-3 rounded-2xl border border-red-500/30 bg-red-950/25 hover:bg-red-900/50 text-red-400 font-bold text-xs uppercase flex items-center justify-center gap-2 transition-all mt-2 cursor-pointer focus:outline-none focus:ring-2 focus:ring-inset focus:ring-red-400"
                       >
                         <LogOut size={15} />
                         <span>{t('exit_app')}</span>
@@ -1774,7 +1807,7 @@ export default function Dashboard({ userId, settings, onUpdateSettings, onTrigge
                         role="button"
                         whileHover={{ scale: 1.02 }}
                         onClick={() => setCurrentView('live')}
-                        className="sm:col-span-2 cursor-pointer glass-card p-6 rounded-3xl border-2 border-gold/50 bg-gradient-to-br from-gold/30 via-zinc-950 to-black flex items-center justify-between group shadow-xl focus:outline-none focus:ring-4 focus:ring-gold focus:scale-105"
+                        className="sm:col-span-2 cursor-pointer glass-card p-6 rounded-3xl border-2 border-gold/50 bg-gradient-to-br from-gold/30 via-zinc-950 to-black flex items-center justify-between group shadow-xl focus:outline-none focus:ring-4 focus:ring-inset focus:ring-gold focus:scale-105"
                       >
                         <div>
                           <span className="text-[10px] font-mono text-gold font-bold uppercase tracking-widest block mb-1">
@@ -1798,7 +1831,7 @@ export default function Dashboard({ userId, settings, onUpdateSettings, onTrigge
                         role="button"
                         whileHover={{ scale: 1.02 }}
                         onClick={() => setCurrentView('movies')}
-                        className="cursor-pointer glass-card p-4 rounded-3xl border border-white/20 hover:border-gold bg-black/60 flex flex-col justify-between group shadow-lg focus:outline-none focus:ring-4 focus:ring-gold"
+                        className="cursor-pointer glass-card p-4 rounded-3xl border border-white/20 hover:border-gold bg-black/60 flex flex-col justify-between group shadow-lg focus:outline-none focus:ring-4 focus:ring-inset focus:ring-gold"
                       >
                         <div className="p-3 rounded-2xl bg-gold/15 text-gold w-fit group-hover:scale-110 transition-transform">
                           <Icons.Filme className="w-7 h-7" />
@@ -1817,7 +1850,7 @@ export default function Dashboard({ userId, settings, onUpdateSettings, onTrigge
                         role="button"
                         whileHover={{ scale: 1.02 }}
                         onClick={() => setCurrentView('series')}
-                        className="cursor-pointer glass-card p-4 rounded-3xl border border-white/20 hover:border-gold bg-black/60 flex flex-col justify-between group shadow-lg focus:outline-none focus:ring-4 focus:ring-gold"
+                        className="cursor-pointer glass-card p-4 rounded-3xl border border-white/20 hover:border-gold bg-black/60 flex flex-col justify-between group shadow-lg focus:outline-none focus:ring-4 focus:ring-inset focus:ring-gold"
                       >
                         <div className="p-3 rounded-2xl bg-gold/15 text-gold w-fit group-hover:scale-110 transition-transform">
                           <Icons.Serie className="w-7 h-7" />
@@ -1861,7 +1894,7 @@ export default function Dashboard({ userId, settings, onUpdateSettings, onTrigge
                             whileHover={{ scale: 1.05, y: -3 }}
                             whileTap={{ scale: 0.95 }}
                             onClick={tile.action}
-                            className={`p-4 rounded-3xl glass-card border-2 flex flex-col justify-between items-center text-center transition-all group focus:outline-none focus:ring-4 focus:ring-gold focus:scale-105 shadow-xl min-h-[140px] sm:min-h-[160px] ${
+                            className={`p-4 rounded-3xl glass-card border-2 flex flex-col justify-between items-center text-center transition-all group focus:outline-none focus:ring-4 focus:ring-inset focus:ring-gold focus:scale-105 shadow-xl min-h-[140px] sm:min-h-[160px] ${
                               tile.highlight
                                 ? 'border-gold bg-gradient-to-b from-gold/30 via-black to-black'
                                 : 'border-white/15 hover:border-gold/60 bg-black/75'
@@ -1901,7 +1934,7 @@ export default function Dashboard({ userId, settings, onUpdateSettings, onTrigge
                       whileHover={{ scale: 1.01 }}
                       whileTap={{ scale: 0.99 }}
                       onClick={() => setCurrentView('live')}
-                      className="cursor-pointer glass-card p-6 sm:p-8 rounded-3xl border-2 border-gold/60 bg-gradient-to-r from-gold/30 via-gold-dark/20 to-black shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-4 group focus:outline-none focus:ring-4 focus:ring-gold focus:scale-[1.02]"
+                      className="cursor-pointer glass-card p-6 sm:p-8 rounded-3xl border-2 border-gold/60 bg-gradient-to-r from-gold/30 via-gold-dark/20 to-black shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-4 group focus:outline-none focus:ring-4 focus:ring-inset focus:ring-gold focus:scale-[1.02]"
                     >
                       <div className="space-y-2 text-left rtl:text-right">
                         <div className="flex items-center gap-2">
@@ -1940,7 +1973,7 @@ export default function Dashboard({ userId, settings, onUpdateSettings, onTrigge
                             whileHover={{ scale: 1.03 }}
                             whileTap={{ scale: 0.97 }}
                             onClick={item.action}
-                            className="p-4 rounded-2xl glass-card border border-white/20 hover:border-gold focus:outline-none focus:ring-4 focus:ring-gold bg-black/60 flex items-center gap-3 text-left rtl:text-right transition-all group shadow-md"
+                            className="p-4 rounded-2xl glass-card border border-white/20 hover:border-gold focus:outline-none focus:ring-4 focus:ring-inset focus:ring-gold bg-black/60 flex items-center gap-3 text-left rtl:text-right transition-all group shadow-md"
                           >
                             <div className="p-2.5 rounded-xl bg-gold/15 text-gold group-hover:scale-110 transition-transform shrink-0">
                               <ItemIcon className="w-6 h-6" />
@@ -1973,7 +2006,7 @@ export default function Dashboard({ userId, settings, onUpdateSettings, onTrigge
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                       onClick={() => setCurrentView('live')}
-                      className="cursor-pointer glass-card p-6 rounded-3xl border-2 border-gold/60 bg-gradient-to-br from-gold/30 via-black to-black flex flex-col justify-between shadow-2xl group min-h-[200px] focus:outline-none focus:ring-4 focus:ring-gold focus:scale-105"
+                      className="cursor-pointer glass-card p-6 rounded-3xl border-2 border-gold/60 bg-gradient-to-br from-gold/30 via-black to-black flex flex-col justify-between shadow-2xl group min-h-[200px] focus:outline-none focus:ring-4 focus:ring-inset focus:ring-gold focus:scale-105"
                     >
                       <div className="flex items-center justify-between">
                         <span className="px-2.5 py-1 bg-red-500/20 text-red-400 rounded-full font-mono font-bold text-[10px] flex items-center gap-1.5 border border-red-500/30">
@@ -2006,7 +2039,7 @@ export default function Dashboard({ userId, settings, onUpdateSettings, onTrigge
                         whileHover={{ scale: 1.03 }}
                         whileTap={{ scale: 0.97 }}
                         onClick={() => setCurrentView('movies')}
-                        className="glass-card p-4 rounded-3xl border border-white/20 hover:border-gold focus:outline-none focus:ring-4 focus:ring-gold flex flex-col justify-between items-center text-center group bg-black/60 shadow-lg min-h-[95px]"
+                        className="glass-card p-4 rounded-3xl border border-white/20 hover:border-gold focus:outline-none focus:ring-4 focus:ring-inset focus:ring-gold flex flex-col justify-between items-center text-center group bg-black/60 shadow-lg min-h-[95px]"
                       >
                         <Icons.Filme className="w-8 h-8 text-gold group-hover:scale-110 transition-transform" />
                         <span className="text-xs font-black uppercase text-white group-hover:text-gold truncate w-full">
@@ -2020,7 +2053,7 @@ export default function Dashboard({ userId, settings, onUpdateSettings, onTrigge
                         whileHover={{ scale: 1.03 }}
                         whileTap={{ scale: 0.97 }}
                         onClick={() => setCurrentView('series')}
-                        className="glass-card p-4 rounded-3xl border border-white/20 hover:border-gold focus:outline-none focus:ring-4 focus:ring-gold flex flex-col justify-between items-center text-center group bg-black/60 shadow-lg min-h-[95px]"
+                        className="glass-card p-4 rounded-3xl border border-white/20 hover:border-gold focus:outline-none focus:ring-4 focus:ring-inset focus:ring-gold flex flex-col justify-between items-center text-center group bg-black/60 shadow-lg min-h-[95px]"
                       >
                         <Icons.Serie className="w-8 h-8 text-gold group-hover:scale-110 transition-transform" />
                         <span className="text-xs font-black uppercase text-white group-hover:text-gold truncate w-full">
@@ -2034,7 +2067,7 @@ export default function Dashboard({ userId, settings, onUpdateSettings, onTrigge
                         whileHover={{ scale: 1.03 }}
                         whileTap={{ scale: 0.97 }}
                         onClick={() => setCurrentView('add')}
-                        className="glass-card p-4 rounded-3xl border border-white/20 hover:border-gold focus:outline-none focus:ring-4 focus:ring-gold flex flex-col justify-between items-center text-center group bg-black/60 shadow-lg min-h-[95px]"
+                        className="glass-card p-4 rounded-3xl border border-white/20 hover:border-gold focus:outline-none focus:ring-4 focus:ring-inset focus:ring-gold flex flex-col justify-between items-center text-center group bg-black/60 shadow-lg min-h-[95px]"
                       >
                         <Icons.Playlist className="w-8 h-8 text-gold group-hover:scale-110 transition-transform" />
                         <span className="text-xs font-black uppercase text-white group-hover:text-gold truncate w-full">
@@ -2048,7 +2081,7 @@ export default function Dashboard({ userId, settings, onUpdateSettings, onTrigge
                         whileHover={{ scale: 1.03 }}
                         whileTap={{ scale: 0.97 }}
                         onClick={() => setCurrentView('settings')}
-                        className="glass-card p-4 rounded-3xl border border-gold/40 hover:border-gold focus:outline-none focus:ring-4 focus:ring-gold flex flex-col justify-between items-center text-center group bg-gold/15 shadow-lg min-h-[95px]"
+                        className="glass-card p-4 rounded-3xl border border-gold/40 hover:border-gold focus:outline-none focus:ring-4 focus:ring-inset focus:ring-gold flex flex-col justify-between items-center text-center group bg-gold/15 shadow-lg min-h-[95px]"
                       >
                         <Settings className="w-8 h-8 text-gold group-hover:rotate-45 transition-transform" />
                         <span className="text-xs font-black uppercase text-gold truncate w-full">
@@ -2081,7 +2114,7 @@ export default function Dashboard({ userId, settings, onUpdateSettings, onTrigge
                             whileHover={{ scale: 1.08, y: -4 }}
                             whileTap={{ scale: 0.95 }}
                             onClick={strip.action}
-                            className={`p-3.5 sm:p-4 rounded-2xl flex flex-col items-center justify-center gap-1.5 transition-all group focus:outline-none focus:ring-4 focus:ring-gold focus:scale-110 min-w-[90px] sm:min-w-[110px] ${
+                            className={`p-3.5 sm:p-4 rounded-2xl flex flex-col items-center justify-center gap-1.5 transition-all group focus:outline-none focus:ring-4 focus:ring-inset focus:ring-gold focus:scale-110 min-w-[90px] sm:min-w-[110px] ${
                               strip.primary
                                 ? 'bg-gold text-black shadow-lg shadow-gold/30 font-black'
                                 : 'bg-white/10 hover:bg-gold/20 text-white border border-white/10 hover:border-gold/50'
@@ -2121,7 +2154,7 @@ export default function Dashboard({ userId, settings, onUpdateSettings, onTrigge
                           whileHover={{ scale: 1.05, y: -4 }}
                           whileTap={{ scale: 0.95 }}
                           onClick={item.action}
-                          className={`p-4 rounded-2xl border-2 ${item.border} flex flex-col items-center justify-center gap-2 shadow-xl focus:outline-none focus:ring-4 focus:ring-gold backdrop-blur-xl`}
+                          className={`p-4 rounded-2xl border-2 ${item.border} flex flex-col items-center justify-center gap-2 shadow-xl focus:outline-none focus:ring-4 focus:ring-inset focus:ring-gold backdrop-blur-xl`}
                         >
                           <item.icon className="w-8 h-8" />
                           <span className="text-xs font-black uppercase tracking-wider">{item.label}</span>
@@ -2151,7 +2184,7 @@ export default function Dashboard({ userId, settings, onUpdateSettings, onTrigge
                           whileHover={{ scale: 1.1, rotate: 2 }}
                           whileTap={{ scale: 0.95 }}
                           onClick={item.action}
-                          className="glass-card p-6 rounded-3xl border-2 border-gold/40 hover:border-gold bg-gradient-to-br from-black/90 to-zinc-900/90 flex flex-col items-center justify-center gap-3 w-32 sm:w-36 h-36 shadow-2xl focus:outline-none focus:ring-4 focus:ring-gold"
+                          className="glass-card p-6 rounded-3xl border-2 border-gold/40 hover:border-gold bg-gradient-to-br from-black/90 to-zinc-900/90 flex flex-col items-center justify-center gap-3 w-32 sm:w-36 h-36 shadow-2xl focus:outline-none focus:ring-4 focus:ring-inset focus:ring-gold"
                         >
                           <item.icon className="w-10 h-10 text-gold" />
                           <span className="text-xs font-black uppercase tracking-wider text-white">{item.label}</span>
@@ -2171,7 +2204,7 @@ export default function Dashboard({ userId, settings, onUpdateSettings, onTrigge
                         data-tv-focusable="true"
                         tabIndex={0}
                         onClick={() => setCurrentView('live')}
-                        className="sm:col-span-2 glass-card p-6 rounded-3xl border border-gold/40 hover:border-gold bg-gradient-to-r from-gold/20 to-black/80 flex items-center justify-between text-left group focus:outline-none focus:ring-4 focus:ring-gold shadow-xl"
+                        className="sm:col-span-2 glass-card p-6 rounded-3xl border border-gold/40 hover:border-gold bg-gradient-to-r from-gold/20 to-black/80 flex items-center justify-between text-left group focus:outline-none focus:ring-4 focus:ring-inset focus:ring-gold shadow-xl"
                       >
                         <div className="space-y-1">
                           <span className="text-[10px] font-bold text-gold uppercase">{isRtl ? 'البث المميز' : 'Featured Broadcast'}</span>
@@ -2183,7 +2216,7 @@ export default function Dashboard({ userId, settings, onUpdateSettings, onTrigge
                         data-tv-focusable="true"
                         tabIndex={0}
                         onClick={() => setCurrentView('movies')}
-                        className="glass-card p-6 rounded-3xl border border-gold/40 hover:border-gold bg-black/80 flex flex-col items-center justify-center gap-2 group focus:outline-none focus:ring-4 focus:ring-gold shadow-xl"
+                        className="glass-card p-6 rounded-3xl border border-gold/40 hover:border-gold bg-black/80 flex flex-col items-center justify-center gap-2 group focus:outline-none focus:ring-4 focus:ring-inset focus:ring-gold shadow-xl"
                       >
                         <Icons.Filme className="w-10 h-10 text-gold group-hover:scale-110 transition-transform" />
                         <span className="text-sm font-black uppercase text-white">{t('movies')}</span>
@@ -2192,7 +2225,7 @@ export default function Dashboard({ userId, settings, onUpdateSettings, onTrigge
                         data-tv-focusable="true"
                         tabIndex={0}
                         onClick={() => setCurrentView('series')}
-                        className="glass-card p-4 rounded-3xl border border-gold/40 hover:border-gold bg-black/80 flex items-center gap-3 group focus:outline-none focus:ring-4 focus:ring-gold shadow-xl"
+                        className="glass-card p-4 rounded-3xl border border-gold/40 hover:border-gold bg-black/80 flex items-center gap-3 group focus:outline-none focus:ring-4 focus:ring-inset focus:ring-gold shadow-xl"
                       >
                         <Icons.Serie className="w-8 h-8 text-gold" />
                         <span className="text-xs font-black uppercase text-white">{t('series')}</span>
@@ -2201,7 +2234,7 @@ export default function Dashboard({ userId, settings, onUpdateSettings, onTrigge
                         data-tv-focusable="true"
                         tabIndex={0}
                         onClick={() => setCurrentView('add')}
-                        className="glass-card p-4 rounded-3xl border border-gold/40 hover:border-gold bg-black/80 flex items-center gap-3 group focus:outline-none focus:ring-4 focus:ring-gold shadow-xl"
+                        className="glass-card p-4 rounded-3xl border border-gold/40 hover:border-gold bg-black/80 flex items-center gap-3 group focus:outline-none focus:ring-4 focus:ring-inset focus:ring-gold shadow-xl"
                       >
                         <Icons.Playlist className="w-8 h-8 text-gold" />
                         <span className="text-xs font-black uppercase text-white">{isRtl ? 'الاشتراكات' : 'Account'}</span>
@@ -2210,7 +2243,7 @@ export default function Dashboard({ userId, settings, onUpdateSettings, onTrigge
                         data-tv-focusable="true"
                         tabIndex={0}
                         onClick={() => setCurrentView('settings')}
-                        className="glass-card p-4 rounded-3xl border border-gold/40 hover:border-gold bg-gold/20 flex items-center gap-3 group focus:outline-none focus:ring-4 focus:ring-gold shadow-xl"
+                        className="glass-card p-4 rounded-3xl border border-gold/40 hover:border-gold bg-gold/20 flex items-center gap-3 group focus:outline-none focus:ring-4 focus:ring-inset focus:ring-gold shadow-xl"
                       >
                         <Settings className="w-8 h-8 text-gold" />
                         <span className="text-xs font-black uppercase text-gold">{t('settings')}</span>
@@ -2239,7 +2272,7 @@ export default function Dashboard({ userId, settings, onUpdateSettings, onTrigge
                           whileHover={{ scale: 1.08, y: -6 }}
                           whileTap={{ scale: 0.95 }}
                           onClick={item.action}
-                          className={`p-5 rounded-2xl flex flex-col items-center justify-center gap-2 transition-all group focus:outline-none focus:ring-4 focus:ring-gold shadow-[0_0_20px_rgba(212,175,55,0.2)] min-w-[120px] ${
+                          className={`p-5 rounded-2xl flex flex-col items-center justify-center gap-2 transition-all group focus:outline-none focus:ring-4 focus:ring-inset focus:ring-gold shadow-[0_0_20px_rgba(212,175,55,0.2)] min-w-[120px] ${
                             item.primary ? 'bg-gradient-to-t from-gold to-amber-300 text-black font-black' : 'bg-black/90 border border-gold/40 hover:border-gold text-white'
                           }`}
                         >
@@ -2270,7 +2303,7 @@ export default function Dashboard({ userId, settings, onUpdateSettings, onTrigge
                           whileHover={{ scale: 1.06, rotate: 1 }}
                           whileTap={{ scale: 0.95 }}
                           onClick={item.action}
-                          className="glass-card p-6 rounded-[2.5rem] border-2 border-gold/50 hover:border-gold bg-black/85 flex flex-col items-center justify-center gap-3 shadow-2xl focus:outline-none focus:ring-4 focus:ring-gold"
+                          className="glass-card p-6 rounded-[2.5rem] border-2 border-gold/50 hover:border-gold bg-black/85 flex flex-col items-center justify-center gap-3 shadow-2xl focus:outline-none focus:ring-4 focus:ring-inset focus:ring-gold"
                         >
                           <item.icon className="w-10 h-10 text-gold" />
                           <span className="text-xs font-black uppercase tracking-wider text-white">{item.label}</span>
@@ -2300,7 +2333,7 @@ export default function Dashboard({ userId, settings, onUpdateSettings, onTrigge
                           whileHover={{ scale: 1.1 }}
                           whileTap={{ scale: 0.92 }}
                           onClick={item.action}
-                          className="glass-card px-6 py-5 rounded-2xl border-2 border-gold/40 hover:border-gold bg-zinc-950/90 flex items-center gap-3 shadow-xl focus:outline-none focus:ring-4 focus:ring-gold"
+                          className="glass-card px-6 py-5 rounded-2xl border-2 border-gold/40 hover:border-gold bg-zinc-950/90 flex items-center gap-3 shadow-xl focus:outline-none focus:ring-4 focus:ring-inset focus:ring-gold"
                         >
                           <item.icon className="w-7 h-7 text-gold" />
                           <span className="text-xs font-black uppercase tracking-wider text-white">{item.label}</span>
@@ -2329,7 +2362,7 @@ export default function Dashboard({ userId, settings, onUpdateSettings, onTrigge
                           whileHover={{ scale: 1.03, x: 6 }}
                           whileTap={{ scale: 0.98 }}
                           onClick={item.action}
-                          className="glass-card p-4 rounded-2xl border border-gold/40 hover:border-gold bg-black/80 flex items-center justify-between text-left group focus:outline-none focus:ring-4 focus:ring-gold shadow-lg"
+                          className="glass-card p-4 rounded-2xl border border-gold/40 hover:border-gold bg-black/80 flex items-center justify-between text-left group focus:outline-none focus:ring-4 focus:ring-inset focus:ring-gold shadow-lg"
                         >
                           <div className="flex items-center gap-4">
                             <div className="p-3 rounded-xl bg-gold/15 text-gold group-hover:scale-110 transition-transform">
@@ -2367,7 +2400,7 @@ export default function Dashboard({ userId, settings, onUpdateSettings, onTrigge
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
                           onClick={item.action}
-                          className={`${item.span} glass-card p-5 rounded-3xl border border-gold/40 hover:border-gold bg-black/85 flex flex-col items-center justify-center gap-2 shadow-xl focus:outline-none focus:ring-4 focus:ring-gold`}
+                          className={`${item.span} glass-card p-5 rounded-3xl border border-gold/40 hover:border-gold bg-black/85 flex flex-col items-center justify-center gap-2 shadow-xl focus:outline-none focus:ring-4 focus:ring-inset focus:ring-gold`}
                         >
                           <item.icon className="w-8 h-8 text-gold" />
                           <span className="text-xs font-black uppercase tracking-wider text-white">{item.label}</span>
@@ -2397,7 +2430,7 @@ export default function Dashboard({ userId, settings, onUpdateSettings, onTrigge
                           whileHover={{ scale: 1.04, x: 4 }}
                           whileTap={{ scale: 0.98 }}
                           onClick={item.action}
-                          className="glass-card p-3.5 rounded-2xl border border-gold/40 hover:border-gold bg-black/90 flex items-center gap-3.5 group focus:outline-none focus:ring-4 focus:ring-gold shadow-lg w-full"
+                          className="glass-card p-3.5 rounded-2xl border border-gold/40 hover:border-gold bg-black/90 flex items-center gap-3.5 group focus:outline-none focus:ring-4 focus:ring-inset focus:ring-gold shadow-lg w-full"
                         >
                           <item.icon className="w-6 h-6 text-gold group-hover:scale-110 transition-transform" />
                           <span className="text-xs font-black uppercase tracking-wider text-white">{item.label}</span>
@@ -2427,7 +2460,7 @@ export default function Dashboard({ userId, settings, onUpdateSettings, onTrigge
                           whileHover={{ scale: 1.12 }}
                           whileTap={{ scale: 0.95 }}
                           onClick={item.action}
-                          className="p-4 rounded-full border border-gold/30 hover:border-gold bg-black/60 hover:bg-gold/20 flex items-center justify-center text-white group focus:outline-none focus:ring-4 focus:ring-gold shadow-lg w-16 h-16 transition-all"
+                          className="p-4 rounded-full border border-gold/30 hover:border-gold bg-black/60 hover:bg-gold/20 flex items-center justify-center text-white group focus:outline-none focus:ring-4 focus:ring-inset focus:ring-gold shadow-lg w-16 h-16 transition-all"
                           title={item.label}
                         >
                           <item.icon className="w-7 h-7 text-gold group-hover:scale-110 transition-transform" />
@@ -2448,6 +2481,19 @@ export default function Dashboard({ userId, settings, onUpdateSettings, onTrigge
               progress={extractionProgress} 
               playlistName={activePlaylistName} 
               language={settings.language}
+              onClose={() => {
+                setShowExtractionModal(false);
+                setExtractionProgress(null);
+                fetchActivePlaylist();
+              }}
+              onRetry={async () => {
+                if (activePlaylistData) {
+                  setShowExtractionModal(true);
+                  await ExtractionService.extract(activePlaylistData, (progress) => {
+                    setExtractionProgress(progress);
+                  }, true);
+                }
+              }}
             />
           )}
         </AnimatePresence>
@@ -2508,7 +2554,7 @@ function HubCard({
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
       onClick={onClick}
-      className={`${sizeClasses} rounded-xl glass-card border-2 border-gold/40 hover:border-gold focus:outline-none focus:ring-4 focus:ring-gold focus:scale-105 bg-black/75 hover:bg-black/90 shadow-[0_0_15px_rgba(212,175,55,0.2)] flex flex-col items-center justify-between text-center group cursor-pointer transition-all duration-200 relative overflow-hidden shrink-0`}
+      className={`${sizeClasses} rounded-xl glass-card border-2 border-gold/40 hover:border-gold focus:outline-none focus:ring-2 focus:ring-inset focus:ring-gold focus:ring-inset focus:scale-105 bg-black/75 hover:bg-black/90 shadow-[0_0_15px_rgba(212,175,55,0.2)] flex flex-col items-center justify-between text-center group cursor-pointer transition-all duration-200 relative overflow-hidden shrink-0`}
     >
       <div className="flex-1 flex items-center justify-center group-hover:scale-105 transition-transform duration-200 overflow-hidden">
         {icon}

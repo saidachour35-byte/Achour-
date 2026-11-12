@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+/* Disable all default browser focus outlines to prevent duplicates with custom rings */
+:focus, :focus-visible {
+  outline: none !important;
+}
+
+/* Base styles */
 @layer base {
   :root {
     --font-sans: 'Tajawal', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;

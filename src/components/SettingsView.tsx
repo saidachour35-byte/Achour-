@@ -691,42 +691,21 @@ export default function SettingsView({ onBack, settings, onUpdateSettings, userI
 
   // Main Settings Grid Items in Consistent Compact Design
   const settingsItems = [
-    { icon: Globe, label: t('language'), value: settings.language.toUpperCase(), action: () => setSubView('language') },
+    { icon: Globe, label: t('language'), value: settings.language === 'ar' ? 'العربية' : settings.language === 'fr' ? 'Français' : settings.language === 'de' ? 'Deutsch' : 'English', action: () => setSubView('language') },
     { icon: Clock, label: t('time_format'), value: settings.timeFormat, action: () => setSubView('time') },
     { icon: LayoutGrid, label: t('view_mode'), value: t(settings.viewMode), action: () => setSubView('view') },
-    { icon: LayoutDashboard, label: `${t('dashboard_layouts')} (30)`, value: (settings.dashboardLayout || 'layout-classic-grid').replace('layout-', '').toUpperCase(), action: () => setSubView('dashboard-layouts') },
-    { 
-      icon: Sparkles, 
-      label: t('icon_size'), 
-      value: (settings.iconScale === 'small' ? `${t('small')} (85%)` : settings.iconScale === 'large' ? `${t('large')} (115%)` : `${t('medium')} (100%)`), 
-      action: () => setSubView('icon-size') 
-    },
-    { 
-      icon: Maximize2, 
-      label: t('screen_zoom'), 
-      value: `${settings.zoomScale || 100}%`, 
-      action: () => setSubView('screen-zoom') 
-    },
+    { icon: LayoutDashboard, label: t('dashboard_layouts'), value: (settings.dashboardLayout || 'layout-classic-grid').replace('layout-', '').toUpperCase(), action: () => setSubView('dashboard-layouts') },
+    { icon: Sparkles, label: t('icon_size'), value: settings.iconScale?.toUpperCase(), action: () => setSubView('icon-size') },
+    { icon: Maximize2, label: t('screen_zoom'), value: `${settings.zoomScale || 100}%`, action: () => setSubView('screen-zoom') },
     { icon: Lock, label: t('parental_control'), value: settings.parentalPassword ? '********' : t('none'), action: () => setSubView('parental') },
-    { icon: MonitorPlay, label: `${t('players_title')} (10)`, value: settings.selectedPlayer, action: () => setSubView('players') },
-    { icon: Palette, label: `${t('royal_themes')} (36)`, value: isRtl ? currentTheme.nameAr : currentTheme.nameEn, action: () => setSubView('royal-colors') },
-    { icon: Sparkles, label: `${t('icons_3d')} (30)`, value: (settings.icon3DStyle || 'style-gold-3d').replace('style-', '').toUpperCase(), action: () => setSubView('icons-3d') },
-    { icon: Image, label: `${t('app_backgrounds')} (${APP_BACKGROUNDS.length})`, value: settings.customBackground ? (isRtl ? 'مخصصة' : 'Custom') : (settings.backgroundStyle || 'anim-golden-dust'), action: () => setSubView('backgrounds') },
-    { 
-      icon: Volume2, 
-      label: t('splash_intro'), 
-      value: (settings.splashSoundTrack || 'cinematic_netflix').replace('_', ' ').toUpperCase(), 
-      action: () => setSubView('splash-intro') 
-    },
-    { icon: History, label: `${t('clear_history')} (${t('movies')})`, action: () => clearHistory('movies') },
-    { icon: History, label: `${t('clear_history')} (${t('series')})`, action: () => clearHistory('series') },
+    { icon: MonitorPlay, label: t('players_title'), value: settings.selectedPlayer, action: () => setSubView('players') },
+    { icon: Palette, label: t('royal_themes'), value: settings.language === 'ar' ? currentTheme.nameAr : currentTheme.nameEn, action: () => setSubView('royal-colors') },
+    { icon: Sparkles, label: t('icons_3d'), value: settings.language === 'ar' ? (ICON_3D_STYLES.find(s => s.id === settings.icon3DStyle)?.nameAr || '3D') : (ICON_3D_STYLES.find(s => s.id === settings.icon3DStyle)?.nameEn || '3D'), action: () => setSubView('icons-3d') },
+    { icon: Image, label: t('app_backgrounds'), value: settings.customBackground ? t('custom') : (settings.language === 'ar' ? (APP_BACKGROUNDS.find(b => b.id === settings.backgroundStyle)?.nameAr || 'خلفية') : (APP_BACKGROUNDS.find(b => b.id === settings.backgroundStyle)?.nameEn || 'Background')), action: () => setSubView('backgrounds') },
+    { icon: Volume2, label: t('splash_intro'), value: (settings.splashSoundTrack || 'cinematic_netflix').replace('_', ' ').toUpperCase(), action: () => setSubView('splash-intro') },
+    { icon: History, label: t('clear_history'), action: () => setSubView('main') },
     { icon: Database, label: t('playlist'), action: () => setSubView('playlist') },
-    { 
-      icon: Shield, 
-      label: t('anti_block_vpn'), 
-      value: settings.vpnEnabled ? `🟢 ${t('enabled')}` : `🔴 ${t('disabled')}`, 
-      action: () => setSubView('vpn') 
-    }
+    { icon: Shield, label: t('anti_block_vpn'), value: settings.vpnEnabled ? `🟢 ${t('enabled')}` : `🔴 ${t('disabled')}`, action: () => setSubView('vpn') }
   ];
 
 
@@ -868,7 +847,7 @@ export default function SettingsView({ onBack, settings, onUpdateSettings, userI
                   onClick={() => {
                     updateSetting('iconScale', opt.id);
                   }}
-                  className={`p-4 rounded-2xl glass-card border-2 flex flex-col justify-between text-left rtl:text-right transition-all group focus:outline-none focus:ring-4 focus:ring-gold ${
+                  className={`p-4 rounded-2xl glass-card border-2 flex flex-col justify-between text-left rtl:text-right transition-all group focus:outline-none focus:ring-4 focus:ring-inset focus:ring-gold ${
                     isActive 
                       ? 'border-gold bg-gold/15 shadow-[0_0_20px_rgba(212,175,55,0.25)]' 
                       : 'border-white/10 hover:border-gold/50 bg-black/50'
@@ -965,7 +944,7 @@ export default function SettingsView({ onBack, settings, onUpdateSettings, userI
                   data-tv-focusable="true"
                   tabIndex={0}
                   onClick={() => updateSetting('zoomScale', preset.val)}
-                  className={`p-4 rounded-2xl glass-card border-2 flex items-center justify-between text-left rtl:text-right transition-all group focus:outline-none focus:ring-4 focus:ring-gold ${
+                  className={`p-4 rounded-2xl glass-card border-2 flex items-center justify-between text-left rtl:text-right transition-all group focus:outline-none focus:ring-4 focus:ring-inset focus:ring-gold ${
                     isActive
                       ? 'border-gold bg-gold/15 shadow-[0_0_20px_rgba(212,175,55,0.25)]'
                       : 'border-white/10 hover:border-gold/50 bg-black/50'
@@ -995,7 +974,7 @@ export default function SettingsView({ onBack, settings, onUpdateSettings, userI
                 data-tv-focusable="true"
                 tabIndex={0}
                 onClick={() => updateSetting('zoomScale', Math.max(70, currentZoom - 1))}
-                className="px-5 py-2.5 bg-white/10 hover:bg-gold hover:text-black text-white rounded-xl text-xs font-black transition-all focus:ring-2 focus:ring-gold"
+                className="px-5 py-2.5 bg-white/10 hover:bg-gold hover:text-black text-white rounded-xl text-xs font-black transition-all focus:ring-2 focus:ring-inset focus:ring-gold"
               >
                 - 1%
               </button>
@@ -1004,7 +983,7 @@ export default function SettingsView({ onBack, settings, onUpdateSettings, userI
                 data-tv-focusable="true"
                 tabIndex={0}
                 onClick={() => updateSetting('zoomScale', Math.min(150, currentZoom + 1))}
-                className="px-5 py-2.5 bg-white/10 hover:bg-gold hover:text-black text-white rounded-xl text-xs font-black transition-all focus:ring-2 focus:ring-gold"
+                className="px-5 py-2.5 bg-white/10 hover:bg-gold hover:text-black text-white rounded-xl text-xs font-black transition-all focus:ring-2 focus:ring-inset focus:ring-gold"
               >
                 + 1%
               </button>
@@ -1093,7 +1072,7 @@ export default function SettingsView({ onBack, settings, onUpdateSettings, userI
                       updateSetting('useExternalPlayer', false);
                       handlePlayerSelect(pEngine.id);
                     }}
-                    className={`cursor-pointer flex flex-col justify-between p-4 glass-card rounded-2xl transition-all border relative group outline-none focus:ring-4 focus:ring-gold ${
+                    className={`cursor-pointer flex flex-col justify-between p-4 glass-card rounded-2xl transition-all border relative group outline-none focus:ring-4 focus:ring-inset focus:ring-gold ${
                       isActive 
                         ? 'border-gold bg-gold/20 shadow-[0_0_20px_rgba(212,175,55,0.3)] ring-2 ring-gold/50' 
                         : 'border-white/10 bg-black/50 hover:border-gold/40 hover:bg-white/5'
@@ -1158,7 +1137,7 @@ export default function SettingsView({ onBack, settings, onUpdateSettings, userI
                       updateSetting('useExternalPlayer', true);
                       handlePlayerSelect(extPlayer.id);
                     }}
-                    className={`cursor-pointer flex flex-col justify-between p-4 glass-card rounded-2xl transition-all border relative group outline-none focus:ring-4 focus:ring-gold ${
+                    className={`cursor-pointer flex flex-col justify-between p-4 glass-card rounded-2xl transition-all border relative group outline-none focus:ring-4 focus:ring-inset focus:ring-gold ${
                       isActive 
                         ? 'border-gold bg-gold/20 shadow-[0_0_20px_rgba(212,175,55,0.3)] ring-2 ring-gold/50' 
                         : 'border-white/10 bg-black/50 hover:border-gold/40 hover:bg-white/5'
@@ -1219,40 +1198,40 @@ export default function SettingsView({ onBack, settings, onUpdateSettings, userI
             {ROYAL_THEMES.map((theme, idx) => {
               const isActive = (settings.royalThemeColor || 'royal-gold') === theme.id;
               return (
-                <button
-                  key={theme.id}
-                  data-tv-focusable="true"
-                  tabIndex={0}
-                  onClick={() => handleSelectRoyalTheme(theme.id)}
-                  className={`p-2 glass-card rounded-lg border transition-all text-left flex flex-col justify-between group relative overflow-hidden outline-none focus:ring-2 focus:ring-gold focus:ring-inset ${
-                    isActive 
-                      ? 'border-white/40 shadow-xl scale-[1.02]' 
-                      : 'border-white/5 hover:border-white/20 hover:bg-white/5'
-                  } ${isRtl ? 'text-right' : ''}`}
-                  style={{
-                    backgroundColor: isActive ? 'rgba(255,255,255,0.06)' : undefined,
-                    boxShadow: isActive ? `0 0 15px ${theme.glow}` : undefined
-                  }}
-                >
-                  <div className={`flex items-center justify-between w-full mb-1.5 ${isRtl ? 'flex-row-reverse' : ''}`}>
-                    <div className="flex items-center gap-1">
-                      <div 
-                        className="w-3 h-3 rounded-full shadow-sm border border-white/20"
-                        style={{ backgroundColor: theme.primary }}
-                      />
-                      <div 
-                        className="w-2 h-2 rounded-full opacity-70"
-                        style={{ backgroundColor: theme.secondary }}
-                      />
+                  <button
+                    key={theme.id}
+                    data-tv-focusable="true"
+                    tabIndex={0}
+                    onClick={() => handleSelectRoyalTheme(theme.id)}
+                    className={`p-2 glass-card rounded-lg border transition-all text-left flex flex-col justify-between group relative overflow-hidden outline-none focus:ring-2 focus:ring-inset focus:ring-gold focus:ring-inset ${
+                      isActive 
+                        ? 'border-white/40 shadow-xl scale-[1.02]' 
+                        : 'border-white/5 hover:border-white/20 hover:bg-white/5'
+                    } ${isRtl ? 'text-right' : ''}`}
+                    style={{
+                      backgroundColor: isActive ? 'rgba(255,255,255,0.06)' : undefined,
+                      boxShadow: isActive ? `0 0 15px ${theme.glow}` : undefined
+                    }}
+                  >
+                    <div className={`flex items-center justify-between w-full mb-1.5 ${isRtl ? 'flex-row-reverse' : ''}`}>
+                      <div className="flex items-center gap-1">
+                        <div 
+                          className="w-3 h-3 rounded-full shadow-sm border border-white/20"
+                          style={{ backgroundColor: theme.primary }}
+                        />
+                        <div 
+                          className="w-2 h-2 rounded-full opacity-70"
+                          style={{ backgroundColor: theme.secondary }}
+                        />
+                      </div>
+                      <span className="text-[8px] font-mono font-bold text-zinc-500">#{idx + 1}</span>
                     </div>
-                    <span className="text-[8px] font-mono font-bold text-zinc-500">#{idx + 1}</span>
-                  </div>
 
-                  <div>
-                    <h3 className="text-[10px] font-black uppercase text-white group-hover:text-gold transition-colors truncate">
-                      {theme.nameAr}
-                    </h3>
-                  </div>
+                    <div>
+                      <h3 className="text-[10px] font-black uppercase text-white group-hover:text-gold transition-colors truncate">
+                        {settings.language === 'ar' ? theme.nameAr : theme.nameEn}
+                      </h3>
+                    </div>
 
                   <div className={`mt-1.5 pt-1 border-t border-white/5 flex items-center justify-between text-[9px] font-mono ${isRtl ? 'flex-row-reverse' : ''}`}>
                     <span style={{ color: theme.primary }} className="font-bold">{theme.primary}</span>
@@ -1304,7 +1283,7 @@ export default function SettingsView({ onBack, settings, onUpdateSettings, userI
                   data-tv-focusable="true"
                   tabIndex={0}
                   onClick={() => handleSelect3DIconStyle(style.id)}
-                  className={`p-2 rounded-lg border transition-all text-left flex flex-col justify-between group relative overflow-hidden outline-none focus:ring-2 focus:ring-gold focus:ring-inset ${
+                  className={`p-2 rounded-lg border transition-all text-left flex flex-col justify-between group relative overflow-hidden outline-none focus:ring-2 focus:ring-inset focus:ring-gold focus:ring-inset ${
                     isActive 
                       ? 'border-gold shadow-[0_0_15px_rgba(212,175,55,0.3)] scale-[1.02]' 
                       : 'border-white/5 hover:border-gold/30 bg-black/40 hover:bg-white/5'
@@ -1324,7 +1303,7 @@ export default function SettingsView({ onBack, settings, onUpdateSettings, userI
 
                   <div>
                     <h3 className="text-[10px] font-black uppercase text-white group-hover:text-gold transition-colors truncate">
-                      {style.nameAr}
+                      {settings.language === 'ar' ? style.nameAr : style.nameEn}
                     </h3>
                   </div>
 
@@ -1405,7 +1384,7 @@ export default function SettingsView({ onBack, settings, onUpdateSettings, userI
                     data-tv-focusable="true"
                     tabIndex={0}
                     onClick={() => handleSelectBackground(bg.id)}
-                    className={`p-2.5 rounded-2xl border transition-all text-left flex flex-col justify-between group relative overflow-hidden outline-none focus:ring-4 focus:ring-gold focus:ring-inset ${
+                    className={`p-2.5 rounded-2xl border transition-all text-left flex flex-col justify-between group relative overflow-hidden outline-none focus:ring-4 focus:ring-inset focus:ring-gold focus:ring-inset ${
                       isActive 
                         ? 'border-gold shadow-[0_0_25px_rgba(212,175,55,0.3)] scale-[1.02]' 
                         : 'border-white/5 hover:border-gold/30 bg-black/40 hover:bg-white/5'
@@ -1425,10 +1404,10 @@ export default function SettingsView({ onBack, settings, onUpdateSettings, userI
 
                     <div>
                       <h3 className="text-xs font-black uppercase text-white group-hover:text-gold transition-colors">
-                        {bg.nameAr}
+                        {settings.language === 'ar' ? bg.nameAr : bg.nameEn}
                       </h3>
                       <p className="text-[10px] text-zinc-400 mt-1 line-clamp-2 leading-relaxed">
-                        {bg.descriptionAr}
+                        {settings.language === 'ar' ? bg.descriptionAr : bg.nameEn}
                       </p>
                     </div>
 
@@ -1485,7 +1464,7 @@ export default function SettingsView({ onBack, settings, onUpdateSettings, userI
                     updateSetting('dashboardLayout', layoutOption.id);
                     setSubView('main');
                   }}
-                  className={`p-3 glass-card rounded-xl border transition-all text-left flex flex-col justify-between group relative overflow-hidden outline-none focus:ring-2 focus:ring-gold focus:ring-inset ${
+                  className={`p-3 glass-card rounded-xl border transition-all text-left flex flex-col justify-between group relative overflow-hidden outline-none focus:ring-2 focus:ring-inset focus:ring-gold focus:ring-inset ${
                     isActive 
                       ? 'border-gold bg-gold/15 shadow-[0_0_20px_rgba(212,175,55,0.3)] scale-[1.02]' 
                       : 'border-white/5 hover:border-gold/40 hover:bg-white/5'
@@ -1500,10 +1479,10 @@ export default function SettingsView({ onBack, settings, onUpdateSettings, userI
 
                   <div>
                     <h3 className="text-[10px] sm:text-xs font-black uppercase text-white group-hover:text-gold transition-colors truncate">
-                      {layoutOption.nameAr}
+                      {settings.language === 'ar' ? layoutOption.nameAr : layoutOption.nameEn}
                     </h3>
                     <p className="text-[9px] text-zinc-500 mt-0.5 line-clamp-2 leading-tight">
-                      {layoutOption.descriptionAr}
+                      {settings.language === 'ar' ? layoutOption.descriptionAr : layoutOption.nameEn}
                     </p>
                   </div>
 
@@ -1590,7 +1569,7 @@ export default function SettingsView({ onBack, settings, onUpdateSettings, userI
                 data-tv-focusable="true"
                 tabIndex={0}
                 onClick={() => setCatFilterTab('all')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all outline-none focus:ring-2 focus:ring-gold ${catFilterTab === 'all' ? 'bg-gold text-black shadow-sm' : 'text-zinc-400 hover:text-white'}`}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all outline-none focus:ring-2 focus:ring-inset focus:ring-gold ${catFilterTab === 'all' ? 'bg-gold text-black shadow-sm' : 'text-zinc-400 hover:text-white'}`}
               >
                 {isRtl ? `الكل (${categories.length})` : `All (${categories.length})`}
               </button>
@@ -1598,7 +1577,7 @@ export default function SettingsView({ onBack, settings, onUpdateSettings, userI
                 data-tv-focusable="true"
                 tabIndex={0}
                 onClick={() => setCatFilterTab('visible')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all outline-none focus:ring-2 focus:ring-gold ${catFilterTab === 'visible' ? 'bg-emerald-500 text-white shadow-sm' : 'text-zinc-400 hover:text-white'}`}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all outline-none focus:ring-2 focus:ring-inset focus:ring-gold ${catFilterTab === 'visible' ? 'bg-emerald-500 text-white shadow-sm' : 'text-zinc-400 hover:text-white'}`}
               >
                 {isRtl ? `المعروضة (${visibleCountInThisView})` : `Visible (${visibleCountInThisView})`}
               </button>
@@ -1606,7 +1585,7 @@ export default function SettingsView({ onBack, settings, onUpdateSettings, userI
                 data-tv-focusable="true"
                 tabIndex={0}
                 onClick={() => setCatFilterTab('hidden')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all outline-none focus:ring-2 focus:ring-gold ${catFilterTab === 'hidden' ? 'bg-red-500 text-white shadow-sm' : 'text-zinc-400 hover:text-white'}`}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all outline-none focus:ring-2 focus:ring-inset focus:ring-gold ${catFilterTab === 'hidden' ? 'bg-red-500 text-white shadow-sm' : 'text-zinc-400 hover:text-white'}`}
               >
                 {isRtl ? `المخفية (${hiddenCountInThisView})` : `Hidden (${hiddenCountInThisView})`}
               </button>
@@ -1617,7 +1596,7 @@ export default function SettingsView({ onBack, settings, onUpdateSettings, userI
                 data-tv-focusable="true"
                 tabIndex={0}
                 onClick={showAllVisibleCategories}
-                className="px-4 py-2.5 bg-white/10 hover:bg-gold hover:text-black text-white text-xs font-bold rounded-xl transition-all flex items-center gap-2 active:scale-95 outline-none focus:ring-2 focus:ring-gold"
+                className="px-4 py-2.5 bg-white/10 hover:bg-gold hover:text-black text-white text-xs font-bold rounded-xl transition-all flex items-center gap-2 active:scale-95 outline-none focus:ring-2 focus:ring-inset focus:ring-gold"
                 title={isRtl ? 'إظهار كافة المجموعات الحالية' : 'Show all current groups'}
               >
                 <Eye size={16} />
@@ -1627,7 +1606,7 @@ export default function SettingsView({ onBack, settings, onUpdateSettings, userI
                 data-tv-focusable="true"
                 tabIndex={0}
                 onClick={hideAllVisibleCategories}
-                className="px-4 py-2.5 bg-red-500/20 hover:bg-red-500 text-red-300 hover:text-white text-xs font-bold rounded-xl transition-all flex items-center gap-2 active:scale-95 outline-none focus:ring-2 focus:ring-gold"
+                className="px-4 py-2.5 bg-red-500/20 hover:bg-red-500 text-red-300 hover:text-white text-xs font-bold rounded-xl transition-all flex items-center gap-2 active:scale-95 outline-none focus:ring-2 focus:ring-inset focus:ring-gold"
                 title={isRtl ? 'إخفاء كافة المجموعات الحالية' : 'Hide all current groups'}
               >
                 <EyeOff size={16} />
@@ -1641,7 +1620,7 @@ export default function SettingsView({ onBack, settings, onUpdateSettings, userI
                   else if (type === 'series') updateSetting('hiddenSeriesCategories', []);
                   else updateSetting('hiddenLiveCategories', []);
                 }}
-                className="px-4 py-2.5 bg-white/5 hover:bg-zinc-800 text-zinc-400 hover:text-white text-xs font-bold rounded-xl transition-all flex items-center gap-2 active:scale-95 border border-white/5 outline-none focus:ring-2 focus:ring-gold"
+                className="px-4 py-2.5 bg-white/5 hover:bg-zinc-800 text-zinc-400 hover:text-white text-xs font-bold rounded-xl transition-all flex items-center gap-2 active:scale-95 border border-white/5 outline-none focus:ring-2 focus:ring-inset focus:ring-gold"
                 title={isRtl ? 'مسح كافة الإعدادات السابقة والمخفية لهذه الفئة' : 'Reset all previous hidden settings for this type'}
               >
                 <Trash2 size={16} />
@@ -1670,7 +1649,7 @@ export default function SettingsView({ onBack, settings, onUpdateSettings, userI
                     data-tv-focusable="true"
                     tabIndex={0}
                     onClick={() => toggleCategoryVisibility(cat.category_id)}
-                    className={`flex items-center justify-between p-3 glass-card rounded-xl transition-all border outline-none focus:outline-none focus:ring-4 focus:ring-gold focus:scale-[1.02] ${
+                    className={`flex items-center justify-between p-3 glass-card rounded-xl transition-all border outline-none focus:outline-none focus:ring-4 focus:ring-inset focus:ring-gold focus:scale-[1.02] ${
                       isHidden 
                         ? 'border-red-500/50 bg-red-950/20 hover:bg-red-950/30' 
                         : 'border-white/5 hover:border-gold/40 hover:bg-white/5'
@@ -1739,7 +1718,7 @@ export default function SettingsView({ onBack, settings, onUpdateSettings, userI
               data-tv-focusable="true"
               tabIndex={0}
               onClick={() => updateSetting('vpnEnabled', !settings.vpnEnabled)}
-              className={`w-full md:w-auto px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg flex items-center justify-center gap-3 shrink-0 active:scale-95 focus:ring-4 focus:ring-white outline-none ${
+              className={`w-full md:w-auto px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg flex items-center justify-center gap-3 shrink-0 active:scale-95 focus:ring-4 focus:ring-inset focus:ring-white outline-none ${
                 settings.vpnEnabled 
                   ? 'bg-gold hover:brightness-110 text-black shadow-gold/25' 
                   : 'bg-white/10 hover:bg-gold hover:text-black text-white border border-white/10'
@@ -1764,7 +1743,7 @@ export default function SettingsView({ onBack, settings, onUpdateSettings, userI
                     data-tv-focusable="true"
                     tabIndex={0}
                     onClick={() => updateSetting('vpnRegion', node.id as any)}
-                    className={`p-3 glass-card rounded-xl border transition-all text-left flex items-center justify-between focus:ring-2 focus:ring-gold outline-none ${
+                    className={`p-3 glass-card rounded-xl border transition-all text-left flex items-center justify-between focus:ring-2 focus:ring-inset focus:ring-gold outline-none ${
                       isActive 
                         ? 'border-gold bg-gold/15 shadow-[0_0_20px_rgba(212,175,55,0.2)]' 
                         : 'border-white/5 hover:border-gold/30 hover:bg-white/5'
@@ -1897,7 +1876,7 @@ export default function SettingsView({ onBack, settings, onUpdateSettings, userI
               onClick={() => {
                 if (onTriggerSplash) onTriggerSplash();
               }}
-              className="px-5 py-2.5 bg-gold text-black rounded-xl text-xs font-black uppercase hover:bg-gold/90 transition-all shadow-md active:scale-95 flex items-center gap-2 focus:ring-4 focus:ring-white outline-none"
+              className="px-5 py-2.5 bg-gold text-black rounded-xl text-xs font-black uppercase hover:bg-gold/90 transition-all shadow-md active:scale-95 flex items-center gap-2 focus:ring-4 focus:ring-inset focus:ring-white outline-none"
             >
               <Sparkles size={14} />
               <span>{isRtl ? 'تجربة وتشغيل' : 'Preview'}</span>
@@ -1925,7 +1904,7 @@ export default function SettingsView({ onBack, settings, onUpdateSettings, userI
                     data-tv-focusable="true"
                     tabIndex={0}
                     onClick={() => updateSetting('splashStyle', item.id as any)}
-                    className={`p-2.5 glass-card rounded-lg border transition-all text-left flex flex-col justify-between focus:outline-none focus:ring-2 focus:ring-gold focus:ring-inset ${
+                    className={`p-2.5 glass-card rounded-lg border transition-all text-left flex flex-col justify-between focus:outline-none focus:ring-2 focus:ring-inset focus:ring-gold focus:ring-inset ${
                       isSelected
                         ? 'border-gold bg-gold/15 shadow-[0_0_20px_rgba(212,175,55,0.25)]'
                         : 'border-white/5 hover:border-gold/30 hover:bg-white/5'
@@ -1965,7 +1944,7 @@ export default function SettingsView({ onBack, settings, onUpdateSettings, userI
                     data-tv-focusable="true"
                     tabIndex={0}
                     onClick={() => updateSetting('splashSoundTrack', opt.id as any)}
-                    className={`p-4 glass-card rounded-2xl border transition-all flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-gold ${
+                    className={`p-4 glass-card rounded-2xl border transition-all flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-inset focus:ring-gold ${
                       isSelected
                         ? 'border-gold bg-gold/15 shadow-[0_0_20px_rgba(212,175,55,0.2)]'
                         : 'border-white/5 hover:border-gold/30 hover:bg-white/5'
@@ -2032,7 +2011,7 @@ export default function SettingsView({ onBack, settings, onUpdateSettings, userI
 
   // MAIN SETTINGS VIEW (CLASSIC GRID LAYOUT RESTORED EXACTLY AS USER DESIRED)
   return (
-    <div className={`min-h-screen max-h-screen w-full bg-[#0d0d11] flex flex-col items-center p-3 sm:p-5 pb-20 select-none overflow-y-auto no-scrollbar relative z-10 ${isRtl ? 'font-cairo' : 'font-sans'}`}>
+    <div className={`h-screen w-full bg-[#0d0d11] flex flex-col items-center p-3 sm:p-5 select-none overflow-hidden relative z-10 ${isRtl ? 'font-cairo' : 'font-sans'}`}>
       {/* Hidden File Input for Direct Channel Upload within Settings */}
       <input 
         type="file" 
@@ -2042,140 +2021,150 @@ export default function SettingsView({ onBack, settings, onUpdateSettings, userI
         onChange={handleChannelFileUploadInSettings}
       />
 
-      {/* Header */}
-      <header className="w-full max-w-5xl flex items-center justify-between mb-4 bg-[#141419] p-3 rounded-2xl border border-white/5 shadow-md">
+      {/* Fixed Header */}
+      <header className="w-full max-w-5xl flex items-center justify-between mb-3 bg-[#141419] p-2 rounded-2xl border border-white/5 shadow-md shrink-0">
         <button 
           data-tv-focusable="true"
           tabIndex={0}
           onClick={onBack}
-          className="p-2.5 bg-[#1e1e26] hover:bg-gold hover:text-black focus:bg-gold focus:text-black focus:ring-2 focus:ring-gold rounded-xl text-white transition-all shadow outline-none cursor-pointer flex items-center justify-center"
+          className="p-2 bg-[#1e1e26] hover:bg-gold hover:text-black focus:bg-gold focus:text-black focus:ring-2 focus:ring-inset focus:ring-gold rounded-xl text-white transition-all shadow outline-none cursor-pointer flex items-center justify-center"
           title={isRtl ? 'رجوع' : 'Back'}
         >
-          <ChevronLeft size={18} className={isRtl ? 'rotate-180' : ''} />
+          <ChevronLeft size={16} className={isRtl ? 'rotate-180' : ''} />
         </button>
         <div className="flex flex-col items-center">
-          <h1 className="text-xs sm:text-base font-black tracking-[0.2em] uppercase text-gold/90">{t('settings')}</h1>
-          <span className="text-[10px] text-zinc-500 font-bold uppercase mt-0.5">{t('settings_subtitle')}</span>
+          <h1 className="text-xs sm:text-sm font-black tracking-[0.2em] uppercase text-gold/90 leading-tight">{t('settings')}</h1>
+          <span className="text-[9px] text-zinc-500 font-bold uppercase mt-0.5">{t('settings_subtitle')}</span>
         </div>
-        <div className="w-9" />
+        <div className="w-8" />
       </header>
 
-      {historyClearSuccess && (
-        <motion.div 
-          initial={{ opacity: 0, y: -10 }} 
-          animate={{ opacity: 1, y: 0 }} 
-          className="mb-3 px-4 py-2 bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 rounded-xl text-xs font-bold"
-        >
-          {t('data_refreshed')}
-        </motion.div>
-      )}
+      {/* Scrollable Content Body */}
+      <div className="w-full max-w-5xl flex-1 overflow-y-auto no-scrollbar pb-10">
+        {historyClearSuccess && (
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }} 
+            animate={{ opacity: 1, y: 0 }} 
+            className="mb-3 px-4 py-2 bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 rounded-xl text-xs font-bold"
+          >
+            {t('data_refreshed')}
+          </motion.div>
+        )}
 
-      {syncNotification && (
-        <motion.div 
-          initial={{ opacity: 0, y: -10 }} 
-          animate={{ opacity: 1, y: 0 }} 
-          className="mb-3 px-4 py-2 bg-[#1a1a24] border border-gold/40 text-gold rounded-xl text-xs font-bold shadow-md flex items-center gap-2"
-        >
-          <RefreshCw size={14} className={syncInProgress ? 'animate-spin' : ''} />
-          <span>{syncNotification}</span>
-        </motion.div>
-      )}
+        {syncNotification && (
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }} 
+            animate={{ opacity: 1, y: 0 }} 
+            className="mb-3 px-4 py-2 bg-[#1a1a24] border border-gold/40 text-gold rounded-xl text-xs font-bold shadow-md flex items-center gap-2"
+          >
+            <RefreshCw size={14} className={syncInProgress ? 'animate-spin' : ''} />
+            <span>{syncNotification}</span>
+          </motion.div>
+        )}
 
-      {/* The 3 Sleek Category Hiding Cards at Top */}
-      <div className="w-full max-w-5xl mb-4 grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-        {/* Card 1: Series Categories */}
-        <motion.button
-          data-tv-focusable="true"
-          tabIndex={0}
-          onClick={() => setSubView('categories-series')}
-          className={`p-3 bg-[#15151b] rounded-xl border border-gold/30 hover:border-gold hover:bg-[#1d1d26] focus:outline-none focus:ring-2 focus:ring-gold flex items-center justify-between transition-all cursor-pointer ${isRtl ? 'flex-row-reverse text-right' : 'text-left'}`}
-        >
-          <div className={`flex items-center gap-2.5 ${isRtl ? 'flex-row-reverse' : ''}`}>
-            <div className="p-2 rounded-lg bg-gold/15 text-gold shrink-0">
-              <Clapperboard size={16} />
+        {/* The 3 Sleek Category Hiding Cards at Top */}
+        <div className="w-full grid grid-cols-1 sm:grid-cols-3 gap-2.5 mb-4">
+          {/* Card 1: Series Categories */}
+          <motion.button
+            data-tv-focusable="true"
+            tabIndex={0}
+            onClick={() => setSubView('categories-series')}
+            className={`p-3 bg-[#15151b] rounded-xl border border-gold/30 hover:border-gold hover:bg-[#1d1d26] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-gold flex items-center justify-between transition-all cursor-pointer ${isRtl ? 'flex-row-reverse text-right' : 'text-left'}`}
+          >
+            <div className={`flex items-center gap-2.5 ${isRtl ? 'flex-row-reverse' : ''}`}>
+              <div className="p-2 rounded-lg bg-gold/15 text-gold shrink-0">
+                <Clapperboard size={16} />
+              </div>
+              <div>
+                <h3 className="text-xs font-black text-gold uppercase tracking-wider">{t('hide_series_categories')}</h3>
+                <p className="text-[10px] text-zinc-400 mt-0.5 line-clamp-1">{t('hide_series_desc')}</p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-xs font-black text-gold uppercase tracking-wider">{t('hide_series_categories')}</h3>
-              <p className="text-[10px] text-zinc-400 mt-0.5 line-clamp-1">{t('hide_series_desc')}</p>
-            </div>
-          </div>
-          <ChevronLeft size={16} className={`${isRtl ? '' : 'rotate-180'} text-gold shrink-0`} />
-        </motion.button>
+            <ChevronLeft size={16} className={`${isRtl ? '' : 'rotate-180'} text-gold shrink-0`} />
+          </motion.button>
 
-        {/* Card 2: Movie Categories */}
-        <motion.button
-          data-tv-focusable="true"
-          tabIndex={0}
-          onClick={() => setSubView('categories-movie')}
-          className={`p-3 bg-[#15151b] rounded-xl border border-white/10 hover:border-gold/40 hover:bg-[#1d1d26] focus:outline-none focus:ring-2 focus:ring-gold flex items-center justify-between transition-all cursor-pointer ${isRtl ? 'flex-row-reverse text-right' : 'text-left'}`}
-        >
-          <div className={`flex items-center gap-2.5 ${isRtl ? 'flex-row-reverse' : ''}`}>
-            <div className="p-2 rounded-lg bg-white/5 text-gold shrink-0">
-              <Film size={16} />
+          {/* Card 2: Movie Categories */}
+          <motion.button
+            data-tv-focusable="true"
+            tabIndex={0}
+            onClick={() => setSubView('categories-movie')}
+            className={`p-3 bg-[#15151b] rounded-xl border border-white/10 hover:border-gold/40 hover:bg-[#1d1d26] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-gold flex items-center justify-between transition-all cursor-pointer ${isRtl ? 'flex-row-reverse text-right' : 'text-left'}`}
+          >
+            <div className={`flex items-center gap-2.5 ${isRtl ? 'flex-row-reverse' : ''}`}>
+              <div className="p-2 rounded-lg bg-white/5 text-gold shrink-0">
+                <Film size={16} />
+              </div>
+              <div>
+                <h3 className="text-xs font-black text-white uppercase tracking-wider">{t('hide_movie_categories')}</h3>
+                <p className="text-[10px] text-zinc-400 mt-0.5 line-clamp-1">{t('hide_movies_desc')}</p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-xs font-black text-white uppercase tracking-wider">{t('hide_movie_categories')}</h3>
-              <p className="text-[10px] text-zinc-400 mt-0.5 line-clamp-1">{t('hide_movies_desc')}</p>
-            </div>
-          </div>
-          <ChevronLeft size={16} className={`${isRtl ? '' : 'rotate-180'} text-zinc-400 shrink-0`} />
-        </motion.button>
+            <ChevronLeft size={16} className={`${isRtl ? '' : 'rotate-180'} text-zinc-400 shrink-0`} />
+          </motion.button>
 
-        {/* Card 3: Live Categories */}
-        <motion.button
-          data-tv-focusable="true"
-          tabIndex={0}
-          onClick={() => setSubView('categories-live')}
-          className={`p-3 bg-[#15151b] rounded-xl border border-white/10 hover:border-gold/40 hover:bg-[#1d1d26] focus:outline-none focus:ring-2 focus:ring-gold flex items-center justify-between transition-all cursor-pointer ${isRtl ? 'flex-row-reverse text-right' : 'text-left'}`}
-        >
-          <div className={`flex items-center gap-2.5 ${isRtl ? 'flex-row-reverse' : ''}`}>
-            <div className="p-2 rounded-lg bg-white/5 text-gold shrink-0">
-              <EyeOff size={16} />
+          {/* Card 3: Live Categories */}
+          <motion.button
+            data-tv-focusable="true"
+            tabIndex={0}
+            onClick={() => setSubView('categories-live')}
+            className={`p-3 bg-[#15151b] rounded-xl border border-white/10 hover:border-gold/40 hover:bg-[#1d1d26] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-gold flex items-center justify-between transition-all cursor-pointer ${isRtl ? 'flex-row-reverse text-right' : 'text-left'}`}
+          >
+            <div className={`flex items-center gap-2.5 ${isRtl ? 'flex-row-reverse' : ''}`}>
+              <div className="p-2 rounded-lg bg-white/5 text-gold shrink-0">
+                <EyeOff size={16} />
+              </div>
+              <div>
+                <h3 className="text-xs font-black text-white uppercase tracking-wider">{t('hide_live_categories')}</h3>
+                <p className="text-[10px] text-zinc-400 mt-0.5 line-clamp-1">{t('hide_live_desc')}</p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-xs font-black text-white uppercase tracking-wider">{t('hide_live_categories')}</h3>
-              <p className="text-[10px] text-zinc-400 mt-0.5 line-clamp-1">{t('hide_live_desc')}</p>
-            </div>
-          </div>
-          <ChevronLeft size={16} className={`${isRtl ? '' : 'rotate-180'} text-zinc-400 shrink-0`} />
-        </motion.button>
-      </div>
+            <ChevronLeft size={16} className={`${isRtl ? '' : 'rotate-180'} text-zinc-400 shrink-0`} />
+          </motion.button>
+        </div>
 
-      {/* Enhanced Compact Charcoal Settings Tiles Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 w-full max-w-5xl mb-6">
-        {settingsItems.map((item, idx) => {
-          const Icon = item.icon;
-          return (
-            <motion.button
-              key={idx}
-              data-tv-focusable="true"
-              tabIndex={0}
-              onClick={item.action}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className="flex flex-col justify-between p-3.5 bg-[#16161c] hover:bg-[#1d1d26] rounded-xl border border-white/10 hover:border-gold/60 focus:border-gold focus:ring-2 focus:ring-gold transition-all group relative overflow-hidden min-h-[92px] text-left rtl:text-right shadow outline-none cursor-pointer"
-            >
-              <div className={`flex items-center justify-between w-full mb-2 ${isRtl ? 'flex-row-reverse' : ''}`}>
-                <div className="p-2 rounded-lg bg-gold/10 text-gold group-hover:bg-gold group-hover:text-black transition-all">
-                  <Icon size={18} />
+        {/* Enhanced Compact Charcoal Settings Tiles Grid */}
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-2 w-full mb-6">
+          {settingsItems.map((item, idx) => {
+            const Icon = item.icon;
+            return (
+              <motion.button
+                key={idx}
+                data-tv-focusable="true"
+                tabIndex={0}
+                onClick={item.action}
+                whileHover={{ scale: 1.01 }}
+                whileTap={{ scale: 0.99 }}
+                className="flex flex-col justify-center items-center p-1.5 bg-[#16161c] hover:bg-[#1d1d26] rounded-lg border border-white/5 hover:border-gold/60 focus:ring-2 focus:ring-inset focus:ring-gold focus:outline-none transition-all group relative overflow-hidden h-[58px] text-center outline-none cursor-pointer"
+              >
+                <div className="p-1 rounded-md bg-gold/10 text-gold group-hover:bg-gold group-hover:text-black transition-all mb-0.5">
+                  <Icon size={10} />
                 </div>
+                <span className="text-[9px] font-black tracking-wider text-white group-hover:text-gold transition-colors block truncate w-full px-1 leading-none">
+                  {item.label}
+                </span>
                 {item.value && (
-                  <span className="text-[11px] font-mono font-bold text-gold bg-[#111115] px-2 py-0.5 rounded border border-gold/20 truncate max-w-[120px]">
+                  <span className="text-[7.5px] font-mono font-bold text-gold/80 truncate w-full mt-0.5 px-1 opacity-90">
                     {item.value}
                   </span>
                 )}
-              </div>
-              <div className="w-full">
-                <span className="text-xs sm:text-sm font-black tracking-wide text-white group-hover:text-gold transition-colors block truncate">
-                  {item.label}
-                </span>
-              </div>
-            </motion.button>
-          );
-        })}
+              </motion.button>
+            );
+          })}
+        </div>
+
+        {/* Upload or Direct Paste M3U Modal Trigger Area (Previously a button, now just a note or simpler tile) */}
+
+        {/* Footer */}
+        <footer className="mt-8 py-4 text-center space-y-1 opacity-40">
+          <p className="text-zinc-500 font-mono tracking-widest text-[11px] uppercase">
+            MAC: <span className="text-zinc-300">6A:CD:C2:93:2F:D5</span>
+          </p>
+          <p className="text-zinc-500 font-mono tracking-widest text-[11px] uppercase">
+            Device Key: <span className="text-gold">411480</span>
+          </p>
+        </footer>
       </div>
 
-      {/* Upload or Direct Paste M3U Modal */}
       <AnimatePresence>
         {showUploadPasteModal && (
           <motion.div 
@@ -2267,42 +2256,27 @@ export default function SettingsView({ onBack, settings, onUpdateSettings, userI
           </motion.div>
         )}
       </AnimatePresence>
-
-
-
-
-
-
-      {/* Footer */}
-      <footer className="mt-4 py-4 text-center space-y-1 opacity-40">
-        <p className="text-zinc-500 font-mono tracking-widest text-[11px] uppercase">
-          MAC: <span className="text-zinc-300">6A:CD:C2:93:2F:D5</span>
-        </p>
-        <p className="text-zinc-500 font-mono tracking-widest text-[11px] uppercase">
-          Device Key: <span className="text-gold">411480</span>
-        </p>
-      </footer>
     </div>
   );
 }
 
 function SubViewContainer({ title, onBack, children, isRtl }: { title: string, onBack: () => void, children: React.ReactNode, isRtl: boolean }) {
   return (
-    <div className={`min-h-screen max-h-screen w-full bg-[#0c0c10] p-3 sm:p-5 pb-20 flex flex-col items-center select-none overflow-y-auto overflow-x-hidden no-scrollbar ${isRtl ? 'font-cairo' : 'font-sans'}`}>
-      <header className="w-full max-w-5xl flex items-center justify-between mb-4 shrink-0 bg-[#141419] p-2.5 sm:p-3 rounded-2xl border border-white/5 shadow-md">
+    <div className={`h-screen w-full bg-[#0c0c10] p-3 sm:p-5 flex flex-col items-center select-none overflow-hidden relative ${isRtl ? 'font-cairo' : 'font-sans'}`}>
+      <header className="w-full max-w-5xl flex items-center justify-between mb-4 shrink-0 bg-[#141419] p-2 rounded-2xl border border-white/5 shadow-md">
         <button 
           data-tv-focusable="true"
           tabIndex={0}
           onClick={onBack} 
-          className="p-2 sm:p-2.5 bg-[#1e1e26] hover:bg-gold hover:text-black focus:bg-gold focus:text-black focus:ring-2 focus:ring-gold rounded-xl text-white transition-all shadow outline-none cursor-pointer flex items-center justify-center"
+          className="p-2 bg-[#1e1e26] hover:bg-gold hover:text-black focus:bg-gold focus:text-black focus:ring-2 focus:ring-inset focus:ring-gold rounded-xl text-white transition-all shadow outline-none cursor-pointer flex items-center justify-center"
           title={isRtl ? 'رجوع' : 'Back'}
         >
-          <ChevronLeft size={18} className={isRtl ? 'rotate-180' : ''} />
+          <ChevronLeft size={16} className={isRtl ? 'rotate-180' : ''} />
         </button>
-        <h1 className="text-xs sm:text-base font-black tracking-widest text-gold uppercase px-2 truncate">{title}</h1>
+        <h1 className="text-xs sm:text-sm font-black tracking-widest text-gold uppercase px-2 truncate">{title}</h1>
         <div className="w-9" />
       </header>
-      <div className="w-full max-w-5xl flex-1">
+      <div className="w-full max-w-5xl flex-1 overflow-y-auto no-scrollbar pb-10">
         {children}
       </div>
     </div>
@@ -2316,9 +2290,9 @@ function OptionButton({ label, active, onClick }: { label: string, active: boole
       tabIndex={0}
       onClick={onClick}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Select' || e.keyCode === 13 || e.keyCode === 23) onClick(); }}
-      className={`flex items-center justify-between p-3.5 sm:p-4 rounded-xl transition-all border outline-none focus:ring-2 focus:ring-gold focus:scale-[1.01] cursor-pointer ${
+      className={`flex items-center justify-between p-3 sm:p-3.5 rounded-xl transition-all border outline-none focus:ring-2 focus:ring-inset focus:ring-gold focus:scale-[1.01] cursor-pointer ${
         active 
-          ? 'border-gold bg-gold/15 shadow-[0_0_15px_rgba(212,175,55,0.25)] ring-1 ring-gold/40' 
+          ? 'border-gold bg-gold/15 shadow-[0_0_15px_rgba(212,175,55,0.25)]' 
           : 'border-white/10 bg-[#16161c] hover:border-gold/40 hover:bg-[#1e1e28]'
       }`}
     >

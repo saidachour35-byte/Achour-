@@ -232,9 +232,8 @@ export default function PlaylistManager({ userId, settings, onUpdateSettings, on
         if (u && p) {
           extractedUser = extractedUser || u;
           extractedPass = extractedPass || p;
-          if (detectedType === 'xtream') {
-            cleanUrl = testUrl.origin;
-          }
+          detectedType = 'xtream';
+          cleanUrl = testUrl.origin;
         }
       } catch (e) {}
     }
@@ -566,7 +565,7 @@ export default function PlaylistManager({ userId, settings, onUpdateSettings, on
                 data-tv-focusable="true"
                 onClick={() => setType('xtream')}
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Select') setType('xtream'); }}
-                className={`p-3.5 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between group outline-none focus:ring-4 focus:ring-gold ${
+                className={`p-3.5 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between group outline-none focus:ring-4 focus:ring-inset focus:ring-gold ${
                   type === 'xtream'
                     ? 'border-gold bg-gold/15 shadow-[0_0_20px_rgba(212,175,55,0.25)]'
                     : 'border-white/10 bg-black/50 hover:border-gold/30 hover:bg-white/5'
@@ -596,7 +595,7 @@ export default function PlaylistManager({ userId, settings, onUpdateSettings, on
                 data-tv-focusable="true"
                 onClick={() => setType('m3u')}
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Select') setType('m3u'); }}
-                className={`p-3.5 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between group outline-none focus:ring-4 focus:ring-gold ${
+                className={`p-3.5 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between group outline-none focus:ring-4 focus:ring-inset focus:ring-gold ${
                   type === 'm3u'
                     ? 'border-gold bg-gold/15 shadow-[0_0_20px_rgba(212,175,55,0.25)]'
                     : 'border-white/10 bg-black/50 hover:border-gold/30 hover:bg-white/5'

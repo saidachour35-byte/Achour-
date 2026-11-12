@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   X, Globe, Server, Tv, Lock, Upload, 
-  Check, Eye, EyeOff, ShieldCheck, AlertCircle 
+  Check, Eye, EyeOff, ShieldCheck, AlertCircle, Sparkles 
 } from 'lucide-react';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
@@ -40,7 +40,55 @@ export default function AddPlaylistModal({
   const [m3uUrl, setM3uUrl] = useState('');
   const [uploadedFileContent, setUploadedFileContent] = useState<string | null>(null);
   const [uploadedFileName, setUploadedFileName] = useState<string>('');
+  const [loading, setLoading] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleAIScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setAiLoading(true);
+    setError('');
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const base64 = event.target?.result as string;
+      try {
+        const response = await fetch('/api/gemini/ocr', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image: base64 })
+        });
+        const data = await response.json();
+        if (data.result) {
+          try {
+            // Clean Markdown if model returns it
+            const jsonStr = data.result.replace(/```json|```/g, '').trim();
+            const parsed = JSON.parse(jsonStr);
+            if (parsed.host) setHost(parsed.host);
+            if (parsed.username) setUsername(parsed.username);
+            if (parsed.password) setPassword(parsed.password);
+            if (parsed.type) setTab(parsed.type);
+            
+            if (parsed.host && parsed.username) {
+              setName(parsed.host.replace(/https?:\/\//, '').split(':')[0] || 'AI Extracted');
+            }
+          } catch (e) {
+            setError(isRtl ? 'لم يتم العثور على بيانات صالحة في الصورة' : 'No valid credentials found in image');
+          }
+        }
+      } catch (err) {
+        setError(isRtl ? 'فشل تحليل الذكاء الاصطناعي' : 'AI Analysis failed');
+      } finally {
+        setAiLoading(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const aiInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -73,9 +121,6 @@ export default function AddPlaylistModal({
   const [isProtected, setIsProtected] = useState(false);
   const [pin, setPin] = useState('');
   const [showPin, setShowPin] = useState(false);
-
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
 
   // Register pushBackHandler when modal is open
   React.useEffect(() => {
@@ -179,14 +224,38 @@ export default function AddPlaylistModal({
           finalUrl = cleanUrl;
         }
 
-        playlistData = {
-          ...playlistData,
-          url: finalUrl,
-          portal: finalUrl,
-          m3uContent: finalContent || undefined,
-          username: isActuallyXtream ? extractedUser : undefined,
-          password: isActuallyXtream ? extractedPass : undefined
-        };
+        if (isActuallyXtream && extractedUser && extractedPass) {
+          // Exactly like IBO Player: Upgrade to Xtream Codes API connection
+          try {
+            const parsedUrl = new URL(finalUrl);
+            const cleanOrigin = parsedUrl.origin;
+            playlistData = {
+              ...playlistData,
+              type: 'xtream',
+              url: cleanOrigin,
+              portal: cleanOrigin,
+              username: extractedUser,
+              password: extractedPass,
+              m3uContent: undefined
+            };
+          } catch (e) {
+            playlistData = {
+              ...playlistData,
+              type: 'xtream',
+              url: finalUrl,
+              portal: finalUrl,
+              username: extractedUser,
+              password: extractedPass
+            };
+          }
+        } else {
+          playlistData = {
+            ...playlistData,
+            url: finalUrl,
+            portal: finalUrl,
+            m3uContent: finalContent || undefined
+          };
+        }
 
         // Save M3U file content in localStorage under various keys to guarantee retrieval
         if (finalContent) {
@@ -285,12 +354,35 @@ export default function AddPlaylistModal({
               <span className="text-xs text-gold font-bold">Achour TV System</span>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2.5 rounded-xl text-zinc-400 hover:text-white hover:bg-white/10 transition-all"
-          >
-            <X size={20} />
-          </button>
+          <div className={`flex items-center gap-2 ${isRtl ? 'flex-row-reverse' : ''}`}>
+            <input 
+              type="file" 
+              className="hidden" 
+              ref={aiInputRef} 
+              accept="image/*" 
+              onChange={handleAIScan} 
+            />
+            <button
+              type="button"
+              data-tv-focusable="true"
+              onClick={() => aiInputRef.current?.click()}
+              disabled={aiLoading}
+              className="px-3 py-1.5 bg-gold/10 hover:bg-gold/20 border border-gold/40 rounded-xl text-gold flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 disabled:opacity-50"
+            >
+              {aiLoading ? (
+                <div className="w-3 h-3 border-2 border-gold border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Sparkles size={14} className="animate-pulse" />
+              )}
+              <span>{isRtl ? 'مسح بالذكاء الاصطناعي' : 'AI Scan'}</span>
+            </button>
+            <button
+              onClick={onClose}
+              className="p-2.5 rounded-xl text-zinc-400 hover:text-white hover:bg-white/10 transition-all"
+            >
+              <X size={20} />
+            </button>
+          </div>
         </div>
 
         {/* Form Body */}
@@ -304,7 +396,7 @@ export default function AddPlaylistModal({
               data-tv-focusable="true"
               onClick={() => setTab('xtream')}
               onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Select') setTab('xtream'); }}
-              className={`p-4.5 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between group outline-none focus:ring-4 focus:ring-gold ${
+              className={`p-4.5 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between group outline-none focus:ring-4 focus:ring-inset focus:ring-gold ${
                 tab === 'xtream'
                   ? 'border-gold bg-gold/15 shadow-[0_0_25px_rgba(212,175,55,0.25)] ring-2 ring-gold/40'
                   : 'border-white/10 bg-black/50 hover:border-gold/40 hover:bg-white/5'
@@ -339,7 +431,7 @@ export default function AddPlaylistModal({
               data-tv-focusable="true"
               onClick={() => setTab('m3u')}
               onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Select') setTab('m3u'); }}
-              className={`p-4.5 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between group outline-none focus:ring-4 focus:ring-gold ${
+              className={`p-4.5 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between group outline-none focus:ring-4 focus:ring-inset focus:ring-gold ${
                 tab === 'm3u'
                   ? 'border-gold bg-gold/15 shadow-[0_0_25px_rgba(212,175,55,0.25)] ring-2 ring-gold/40'
                   : 'border-white/10 bg-black/50 hover:border-gold/40 hover:bg-white/5'

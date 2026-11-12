@@ -838,6 +838,11 @@ export const VodPlayerModal: React.FC<VodPlayerModalProps> = ({
           return;
         }
 
+        if (activePopup !== 'none') {
+          setActivePopup('none');
+          return;
+        }
+
         if (showControls) {
           setShowControls(false);
           return;
@@ -848,38 +853,15 @@ export const VodPlayerModal: React.FC<VodPlayerModalProps> = ({
       }
 
       const key = e.key;
+      resetControlsTimeout();
 
-      if (isLive) {
-        if (key === 'ArrowRight') {
-          e.preventDefault();
-          handleNextChannel();
-          return;
-        } else if (key === 'ArrowLeft') {
-          e.preventDefault();
-          handlePrevChannel();
-          return;
-        } else if (key === 'ArrowUp' || key === 'ArrowDown') {
-          e.preventDefault();
-          setShowControls(true);
-          return;
-        }
-      }
-
-      if (!showControls) {
-        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', ' '].includes(key)) {
-          setShowControls(true);
-          const firstCtrl = containerRef.current?.querySelector<HTMLElement>('.vod-seekbar-input, .vod-bottom-play-btn, [data-tv-focusable="true"]');
-          firstCtrl?.focus();
-          return;
-        }
-      }
-
+      // If a popup (Audio, Subtitles, Aspect, EPG) is active, navigate inside the popup
       if (activePopup !== 'none') {
         const popupEl = containerRef.current?.querySelector('.vod-popup-container, .vod-drawer-container');
         if (popupEl) {
           const focusableItems = Array.from(
             popupEl.querySelectorAll<HTMLElement>('button, [tabindex="0"]')
-          );
+          ).filter(el => el.offsetWidth > 0 && el.offsetHeight > 0);
 
           if (focusableItems.length > 0) {
             const activeIdx = focusableItems.findIndex((el) => el === document.activeElement);
@@ -887,14 +869,15 @@ export const VodPlayerModal: React.FC<VodPlayerModalProps> = ({
             if (key === 'ArrowDown') {
               e.preventDefault();
               const nextIdx = activeIdx < focusableItems.length - 1 ? activeIdx + 1 : 0;
-              focusableItems[nextIdx].focus();
+              focusableItems[nextIdx]?.focus();
             } else if (key === 'ArrowUp') {
               e.preventDefault();
               const prevIdx = activeIdx > 0 ? activeIdx - 1 : focusableItems.length - 1;
-              focusableItems[prevIdx].focus();
+              focusableItems[prevIdx]?.focus();
             } else if (key === 'ArrowRight' || key === 'ArrowLeft') {
               e.preventDefault();
-            } else if (key === 'Enter' || key === ' ') {
+            } else if (key === 'Enter' || key === ' ' || key === 'Select' || e.keyCode === 13 || e.keyCode === 23) {
+              e.preventDefault();
               if (document.activeElement instanceof HTMLElement) {
                 document.activeElement.click();
               }
@@ -904,68 +887,107 @@ export const VodPlayerModal: React.FC<VodPlayerModalProps> = ({
         return;
       }
 
-      const controlButtons = Array.from(
-        containerRef.current?.querySelectorAll<HTMLElement>('[data-tv-focusable="true"]') || []
-      );
-
-      if (controlButtons.length === 0) return;
-
-      const currentActive = document.activeElement as HTMLElement;
-      let currentIndex = controlButtons.indexOf(currentActive);
-      const isSeekbarFocused = currentActive && currentActive.classList.contains('vod-seekbar-input');
-
-      if (key === 'ArrowRight') {
-        e.preventDefault();
-        if (isSeekbarFocused) {
-          handleSkipTime(10);
-        } else if (currentIndex >= 0) {
-          const nextIdx = (currentIndex + 1) % controlButtons.length;
-          controlButtons[nextIdx]?.focus();
-        } else {
-          const defaultBtn = containerRef.current?.querySelector<HTMLElement>('.vod-bottom-play-btn, .vod-seekbar-input, [data-tv-focusable="true"]');
-          defaultBtn?.focus();
+      // If controls are hidden
+      if (!showControls) {
+        if (['ArrowUp', 'ArrowDown', 'Enter', ' ', 'Select'].includes(key) || e.keyCode === 13 || e.keyCode === 23) {
+          e.preventDefault();
+          setShowControls(true);
+          setTimeout(() => {
+            const playBtn = containerRef.current?.querySelector<HTMLElement>('.vod-bottom-play-btn, [data-tv-row="main"]');
+            const subBtn = containerRef.current?.querySelector<HTMLElement>('[data-tv-row="sub"]');
+            (playBtn || subBtn)?.focus();
+          }, 50);
+          return;
         }
-      } else if (key === 'ArrowLeft') {
+
+        if (isLive) {
+          if (key === 'ArrowRight') {
+            e.preventDefault();
+            handleNextChannel();
+            return;
+          } else if (key === 'ArrowLeft') {
+            e.preventDefault();
+            handlePrevChannel();
+            return;
+          }
+        }
+      }
+
+      // If controls are visible: navigate the on-screen buttons
+      const currentActive = document.activeElement as HTMLElement;
+      const isSeekbarFocused = currentActive && currentActive.classList.contains('vod-seekbar-input');
+      const mainRowItems = Array.from(containerRef.current?.querySelectorAll<HTMLElement>('[data-tv-row="main"]') || []);
+      const subRowItems = Array.from(containerRef.current?.querySelectorAll<HTMLElement>('[data-tv-row="sub"]') || []);
+
+      if (key === 'ArrowDown') {
         e.preventDefault();
+        setShowControls(true);
         if (isSeekbarFocused) {
-          handleSkipTime(-10);
-        } else if (currentIndex >= 0) {
-          const prevIdx = (currentIndex - 1 + controlButtons.length) % controlButtons.length;
-          controlButtons[prevIdx]?.focus();
+          const playBtn = containerRef.current?.querySelector<HTMLElement>('.vod-bottom-play-btn') || mainRowItems[0];
+          playBtn?.focus();
+        } else if (currentActive && currentActive.getAttribute('data-tv-row') === 'main') {
+          // Move from main capsule row down to bottom sub row (Audio, Subtitles, Back, EPG)
+          if (subRowItems.length > 0) {
+            subRowItems[0]?.focus();
+          }
         } else {
-          const defaultBtn = containerRef.current?.querySelector<HTMLElement>('.vod-bottom-play-btn, .vod-seekbar-input, [data-tv-focusable="true"]');
-          defaultBtn?.focus();
+          // Default to sub-row or play button
+          if (subRowItems.length > 0) {
+            subRowItems[0]?.focus();
+          } else if (mainRowItems.length > 0) {
+            mainRowItems[0]?.focus();
+          }
         }
       } else if (key === 'ArrowUp') {
         e.preventDefault();
         setShowControls(true);
-        const currentRow = currentActive?.getAttribute('data-tv-row');
-        if (currentRow === 'sub') {
-          // Move from bottom sub-buttons up to main capsule row
-          const mainTarget = containerRef.current?.querySelector<HTMLElement>('.vod-bottom-play-btn, [data-tv-row="main"]');
-          if (mainTarget) mainTarget.focus();
-        } else if (currentRow === 'main' && !isSeekbarFocused) {
-          // Move up to seekbar if present
+        if (currentActive && currentActive.getAttribute('data-tv-row') === 'sub') {
+          // Move from sub row up to main capsule row
+          const playBtn = containerRef.current?.querySelector<HTMLElement>('.vod-bottom-play-btn') || mainRowItems[0];
+          playBtn?.focus();
+        } else if (currentActive && currentActive.getAttribute('data-tv-row') === 'main' && !isSeekbarFocused) {
+          // Move up to seekbar if present in VOD
           const seekbar = containerRef.current?.querySelector<HTMLElement>('.vod-seekbar-input');
-          if (seekbar) seekbar.focus();
+          if (seekbar) {
+            seekbar.focus();
+          }
         } else {
-          const defaultBtn = containerRef.current?.querySelector<HTMLElement>('.vod-bottom-play-btn, [data-tv-focusable="true"]');
-          if (defaultBtn) defaultBtn.focus();
+          const playBtn = containerRef.current?.querySelector<HTMLElement>('.vod-bottom-play-btn') || mainRowItems[0];
+          playBtn?.focus();
         }
-      } else if (key === 'ArrowDown') {
+      } else if (key === 'ArrowRight') {
         e.preventDefault();
         setShowControls(true);
-        const currentRow = currentActive?.getAttribute('data-tv-row');
         if (isSeekbarFocused) {
-          const mainTarget = containerRef.current?.querySelector<HTMLElement>('.vod-bottom-play-btn, [data-tv-row="main"]');
-          if (mainTarget) mainTarget.focus();
-        } else if (currentRow === 'main') {
-          // Move from main capsule row down to bottom sub-buttons
-          const subTarget = containerRef.current?.querySelector<HTMLElement>('[data-tv-row="sub"]');
-          if (subTarget) subTarget.focus();
+          handleSkipTime(10);
+        } else if (currentActive && currentActive.getAttribute('data-tv-row') === 'sub') {
+          const curSubIdx = subRowItems.indexOf(currentActive);
+          const nextIdx = (curSubIdx + 1) % subRowItems.length;
+          subRowItems[nextIdx]?.focus();
+        } else if (currentActive && currentActive.getAttribute('data-tv-row') === 'main') {
+          const curMainIdx = mainRowItems.indexOf(currentActive);
+          const nextIdx = (curMainIdx + 1) % mainRowItems.length;
+          mainRowItems[nextIdx]?.focus();
         } else {
-          const subTarget = containerRef.current?.querySelector<HTMLElement>('[data-tv-row="sub"]');
-          if (subTarget) subTarget.focus();
+          const playBtn = containerRef.current?.querySelector<HTMLElement>('.vod-bottom-play-btn') || mainRowItems[0] || subRowItems[0];
+          playBtn?.focus();
+        }
+      } else if (key === 'ArrowLeft') {
+        e.preventDefault();
+        setShowControls(true);
+        if (isSeekbarFocused) {
+          handleSkipTime(-10);
+        } else if (currentActive && currentActive.getAttribute('data-tv-row') === 'sub') {
+          const curSubIdx = subRowItems.indexOf(currentActive);
+          const prevIdx = (curSubIdx - 1 + subRowItems.length) % subRowItems.length;
+          subRowItems[prevIdx]?.focus();
+        } else if (currentActive && currentActive.getAttribute('data-tv-row') === 'main') {
+          const curMainIdx = mainRowItems.indexOf(currentActive);
+          const prevIdx = (curMainIdx - 1 + mainRowItems.length) % mainRowItems.length;
+          mainRowItems[prevIdx]?.focus();
+        } else {
+          const playBtn = containerRef.current?.querySelector<HTMLElement>('.vod-bottom-play-btn') || mainRowItems[0] || subRowItems[0];
+          playBtn?.focus();
         }
       } else if (key === 'Enter' || key === ' ' || key === 'Select' || e.keyCode === 13 || e.keyCode === 32 || e.keyCode === 23) {
         e.preventDefault();
@@ -1118,14 +1140,14 @@ export const VodPlayerModal: React.FC<VodPlayerModalProps> = ({
                 <button
                   onClick={handleNextEpisode}
                   tabIndex={0}
-                  className="px-6 py-2.5 rounded-xl bg-gold hover:bg-gold-light text-black font-bold text-sm shadow-lg transition-transform active:scale-95 focus:ring-2 focus:ring-gold"
+                  className="px-6 py-2.5 rounded-xl bg-gold hover:bg-gold-light text-black font-bold text-sm shadow-lg transition-transform active:scale-95 focus:ring-2 focus:ring-inset focus:ring-gold"
                 >
                   تشغيل الآن
                 </button>
                 <button
                   onClick={() => setShowAutoNextPrompt(false)}
                   tabIndex={0}
-                  className="px-5 py-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-200 text-sm font-semibold border border-gray-700 focus:ring-2 focus:ring-gold"
+                  className="px-5 py-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-200 text-sm font-semibold border border-gray-700 focus:ring-2 focus:ring-inset focus:ring-gold"
                 >
                   إلغاء
                 </button>
@@ -1149,14 +1171,14 @@ export const VodPlayerModal: React.FC<VodPlayerModalProps> = ({
                 <button
                   onClick={() => handleResumeConfirm(true)}
                   tabIndex={0}
-                  className="px-6 py-2.5 rounded-xl bg-gold hover:bg-gold-light text-black font-bold text-sm shadow-lg transition-transform active:scale-95 focus:ring-2 focus:ring-gold"
+                  className="px-6 py-2.5 rounded-xl bg-gold hover:bg-gold-light text-black font-bold text-sm shadow-lg transition-transform active:scale-95 focus:ring-2 focus:ring-inset focus:ring-gold"
                 >
                   متابعة من حيث توقفت
                 </button>
                 <button
                   onClick={() => handleResumeConfirm(false)}
                   tabIndex={0}
-                  className="px-5 py-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-200 text-sm font-semibold border border-gray-700 focus:ring-2 focus:ring-gold"
+                  className="px-5 py-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-200 text-sm font-semibold border border-gray-700 focus:ring-2 focus:ring-inset focus:ring-gold"
                 >
                   بدء من البداية
                 </button>
@@ -1181,7 +1203,7 @@ export const VodPlayerModal: React.FC<VodPlayerModalProps> = ({
                   data-tv-focusable="true"
                   data-tv-row="main"
                   tabIndex={0}
-                  className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-black/80 hover:bg-black/95 backdrop-blur-md border border-white/20 text-white flex items-center justify-center shrink-0 shadow-lg transition-all active:scale-90 focus:ring-2 focus:ring-[var(--theme-primary,#e5a00d)]"
+                  className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-black/80 hover:bg-black/95 backdrop-blur-md border border-white/20 text-white flex items-center justify-center shrink-0 shadow-lg transition-all active:scale-90 focus:ring-2 focus:ring-inset focus:ring-[var(--theme-primary,#e5a00d)]"
                 >
                   <ChevronLeft className="w-5 h-5" />
                 </button>
@@ -1253,7 +1275,7 @@ export const VodPlayerModal: React.FC<VodPlayerModalProps> = ({
                       data-tv-focusable="true"
                       data-tv-row="main"
                       tabIndex={0}
-                      className="p-1.5 rounded-full hover:bg-white/10 transition-transform active:scale-125 focus:ring-2 focus:ring-[var(--theme-primary,#e5a00d)] shrink-0"
+                      className="p-1.5 rounded-full hover:bg-white/10 transition-transform active:scale-125 focus:ring-2 focus:ring-inset focus:ring-[var(--theme-primary,#e5a00d)] shrink-0"
                     >
                       <Star className={`w-5 h-5 ${isFavorite ? 'text-amber-400 fill-amber-400' : 'text-zinc-400'}`} />
                     </button>
@@ -1266,7 +1288,7 @@ export const VodPlayerModal: React.FC<VodPlayerModalProps> = ({
                   data-tv-focusable="true"
                   data-tv-row="main"
                   tabIndex={0}
-                  className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-black/80 hover:bg-black/95 backdrop-blur-md border border-white/20 text-white flex items-center justify-center shrink-0 shadow-lg transition-all active:scale-90 focus:ring-2 focus:ring-[var(--theme-primary,#e5a00d)]"
+                  className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-black/80 hover:bg-black/95 backdrop-blur-md border border-white/20 text-white flex items-center justify-center shrink-0 shadow-lg transition-all active:scale-90 focus:ring-2 focus:ring-inset focus:ring-[var(--theme-primary,#e5a00d)]"
                 >
                   <ChevronRight className="w-5 h-5" />
                 </button>
@@ -1281,7 +1303,7 @@ export const VodPlayerModal: React.FC<VodPlayerModalProps> = ({
                     data-tv-focusable="true"
                     data-tv-row="sub"
                     tabIndex={0}
-                    className="px-4 py-1.5 rounded-full bg-black/80 hover:bg-white/15 border border-white/20 text-white text-xs font-bold flex items-center gap-2 focus:ring-2 focus:ring-[var(--theme-primary,#e5a00d)] active:scale-95 transition-all shadow-md"
+                    className="px-4 py-1.5 rounded-full bg-black/80 hover:bg-white/15 border border-white/20 text-white text-xs font-bold flex items-center gap-2 focus:ring-2 focus:ring-inset focus:ring-[var(--theme-primary,#e5a00d)] active:scale-95 transition-all shadow-md"
                   >
                     <RotateCcw className="w-3.5 h-3.5 text-zinc-300" />
                     <span>{isRtl ? 'رجوع' : 'Back'}</span>
@@ -1296,7 +1318,7 @@ export const VodPlayerModal: React.FC<VodPlayerModalProps> = ({
                     data-tv-focusable="true"
                     data-tv-row="sub"
                     tabIndex={0}
-                    className="px-5 py-1.5 rounded-full bg-[var(--theme-primary,#e5a00d)] text-black text-xs font-black flex items-center gap-2 focus:ring-2 focus:ring-white active:scale-95 transition-all shadow-lg"
+                    className="px-5 py-1.5 rounded-full bg-[var(--theme-primary,#e5a00d)] text-black text-xs font-black flex items-center gap-2 focus:ring-2 focus:ring-inset focus:ring-white active:scale-95 transition-all shadow-lg"
                   >
                     <Tv className="w-3.5 h-3.5" />
                     <span>EPG</span>
@@ -1308,7 +1330,7 @@ export const VodPlayerModal: React.FC<VodPlayerModalProps> = ({
                     data-tv-focusable="true"
                     data-tv-row="sub"
                     tabIndex={0}
-                    className="px-4 py-1.5 rounded-full bg-black/80 hover:bg-white/15 border border-white/20 text-white text-xs font-bold flex items-center gap-2 focus:ring-2 focus:ring-[var(--theme-primary,#e5a00d)] active:scale-95 transition-all shadow-md"
+                    className="px-4 py-1.5 rounded-full bg-black/80 hover:bg-white/15 border border-white/20 text-white text-xs font-bold flex items-center gap-2 focus:ring-2 focus:ring-inset focus:ring-[var(--theme-primary,#e5a00d)] active:scale-95 transition-all shadow-md"
                   >
                     <Info className="w-3.5 h-3.5 text-zinc-300" />
                     <span>{isRtl ? 'معلومات' : 'Info'}</span>
@@ -1326,21 +1348,9 @@ export const VodPlayerModal: React.FC<VodPlayerModalProps> = ({
             /* MOVIE AND SERIES FLOATING INFOBAR OSD (MATCHING USER REFERENCE SCREENSHOT) */
             <div className="w-full max-w-5xl mx-auto flex flex-col items-center gap-2.5 font-sans dir-ltr select-none">
               {/* Main Horizontal Row */}
-              <div className="w-full flex items-center justify-between gap-2">
-                {/* Outer Left Circle Chevron (<) */}
-                <button
-                  onClick={onClose}
-                  data-tv-focusable="true"
-                  data-tv-row="main"
-                  tabIndex={0}
-                  className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-black/80 hover:bg-black/95 backdrop-blur-md border border-white/20 text-white flex items-center justify-center shrink-0 shadow-lg transition-all active:scale-90 focus:ring-2 focus:ring-[var(--theme-primary,#e5a00d)]"
-                  title={isRtl ? 'إغلاق' : 'Close'}
-                >
-                  <ChevronLeft className="w-5 h-5" />
-                </button>
-
+              <div className="w-full flex items-center justify-center">
                 {/* Main Dark Capsule Bar */}
-                <div className="flex-1 bg-[#121214]/90 backdrop-blur-2xl rounded-3xl border border-white/15 p-2 sm:p-2.5 shadow-[0_12px_40px_rgba(0,0,0,0.9)] flex items-center justify-between gap-2.5 sm:gap-3.5 min-w-0">
+                <div className="w-full bg-[#121214]/90 backdrop-blur-2xl rounded-3xl border border-white/15 p-2 sm:p-2.5 shadow-[0_12px_40px_rgba(0,0,0,0.9)] flex items-center justify-between gap-2.5 sm:gap-3.5 min-w-0">
                   {/* 1. Media Poster Box */}
                   <div className="w-10 h-12 sm:w-12 sm:h-14 rounded-xl border border-white/20 bg-black overflow-hidden shrink-0 shadow-md flex items-center justify-center">
                     {(activeVod.stream_icon || activeVod.cover || activeVod.logo) ? (
@@ -1377,7 +1387,7 @@ export const VodPlayerModal: React.FC<VodPlayerModalProps> = ({
                           data-tv-focusable="true"
                           data-tv-row="main"
                           tabIndex={0}
-                          className="vod-seekbar-input w-full h-1.5 bg-white/20 rounded-full appearance-none cursor-pointer accent-[var(--theme-primary,#e5a00d)] focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary,#e5a00d)]"
+                          className="vod-seekbar-input w-full h-1.5 bg-white/20 rounded-full appearance-none cursor-pointer accent-[var(--theme-primary,#e5a00d)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--theme-primary,#e5a00d)]"
                           style={{
                             background: `linear-gradient(to right, var(--theme-primary, #e5a00d) ${
                               (currentTime / (duration || 1)) * 100
@@ -1398,7 +1408,7 @@ export const VodPlayerModal: React.FC<VodPlayerModalProps> = ({
                       data-tv-focusable="true"
                       data-tv-row="main"
                       tabIndex={0}
-                      className="vod-bottom-btn w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/10 hover:bg-white/20 border border-white/10 text-white flex items-center justify-center transition-all active:scale-90 focus:ring-2 focus:ring-[var(--theme-primary,#e5a00d)]"
+                      className="vod-bottom-btn w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/10 hover:bg-white/20 border border-white/10 text-white flex items-center justify-center transition-all active:scale-90 focus:outline-none focus:ring-4 focus:ring-inset focus:ring-gold focus:scale-110 focus:bg-white/30"
                       title="-10s"
                     >
                       <RotateCcw className="w-4 h-4" />
@@ -1409,7 +1419,7 @@ export const VodPlayerModal: React.FC<VodPlayerModalProps> = ({
                       data-tv-focusable="true"
                       data-tv-row="main"
                       tabIndex={0}
-                      className="vod-bottom-btn vod-bottom-play-btn w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-[var(--theme-primary,#e5a00d)] hover:brightness-110 text-black flex items-center justify-center font-black shadow-lg shadow-[var(--theme-primary,#e5a00d)]/30 transition-all active:scale-90 focus:ring-2 focus:ring-white"
+                      className="vod-bottom-btn vod-bottom-play-btn w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-[var(--theme-primary,#e5a00d)] hover:brightness-110 text-black flex items-center justify-center font-black shadow-lg shadow-[var(--theme-primary,#e5a00d)]/30 transition-all active:scale-90 focus:outline-none focus:ring-4 focus:ring-inset focus:ring-white focus:scale-110"
                       title={isPlaying ? 'إيقاف مؤقت' : 'تشغيل'}
                     >
                       {isPlaying ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current ml-0.5" />}
@@ -1420,7 +1430,7 @@ export const VodPlayerModal: React.FC<VodPlayerModalProps> = ({
                       data-tv-focusable="true"
                       data-tv-row="main"
                       tabIndex={0}
-                      className="vod-bottom-btn w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/10 hover:bg-white/20 border border-white/10 text-white flex items-center justify-center transition-all active:scale-90 focus:ring-2 focus:ring-[var(--theme-primary,#e5a00d)]"
+                      className="vod-bottom-btn w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/10 hover:bg-white/20 border border-white/10 text-white flex items-center justify-center transition-all active:scale-90 focus:outline-none focus:ring-4 focus:ring-inset focus:ring-gold focus:scale-110 focus:bg-white/30"
                       title="+10s"
                     >
                       <RotateCw className="w-4 h-4" />
@@ -1437,7 +1447,7 @@ export const VodPlayerModal: React.FC<VodPlayerModalProps> = ({
                       data-tv-focusable="true"
                       data-tv-row="main"
                       tabIndex={0}
-                      className="vod-bottom-btn w-9 h-9 rounded-2xl border border-white/20 bg-white/10 hover:bg-white/20 text-white text-xs font-black flex items-center justify-center focus:ring-2 focus:ring-[var(--theme-primary,#e5a00d)]"
+                      className="vod-bottom-btn w-9 h-9 rounded-2xl border border-white/20 bg-white/10 hover:bg-white/20 text-white text-xs font-black flex items-center justify-center focus:outline-none focus:ring-4 focus:ring-inset focus:ring-gold focus:scale-110 focus:bg-white/30"
                       title={t('subtitles')}
                     >
                       CC
@@ -1448,7 +1458,7 @@ export const VodPlayerModal: React.FC<VodPlayerModalProps> = ({
                       data-tv-focusable="true"
                       data-tv-row="main"
                       tabIndex={0}
-                      className="vod-bottom-btn w-9 h-9 rounded-2xl border border-white/20 bg-white/10 hover:bg-white/20 text-white flex items-center justify-center focus:ring-2 focus:ring-[var(--theme-primary,#e5a00d)]"
+                      className="vod-bottom-btn w-9 h-9 rounded-2xl border border-white/20 bg-white/10 hover:bg-white/20 text-white flex items-center justify-center focus:outline-none focus:ring-4 focus:ring-inset focus:ring-gold focus:scale-110 focus:bg-white/30"
                       title={t('aspect_ratio')}
                     >
                       <Maximize2 className="w-4 h-4" />
@@ -1460,7 +1470,7 @@ export const VodPlayerModal: React.FC<VodPlayerModalProps> = ({
                         data-tv-focusable="true"
                         data-tv-row="main"
                         tabIndex={0}
-                        className="vod-bottom-btn p-1.5 rounded-full hover:bg-white/10 transition-transform active:scale-125 focus:ring-2 focus:ring-[var(--theme-primary,#e5a00d)] shrink-0"
+                        className="vod-bottom-btn p-1.5 rounded-full hover:bg-white/10 transition-transform active:scale-125 focus:outline-none focus:ring-4 focus:ring-inset focus:ring-gold focus:scale-125 focus:bg-white/20 shrink-0"
                       >
                         <Star className={`w-5 h-5 ${isFavorite ? 'text-amber-400 fill-amber-400' : 'text-zinc-400'}`} />
                       </button>
@@ -1477,9 +1487,9 @@ export const VodPlayerModal: React.FC<VodPlayerModalProps> = ({
                   data-tv-focusable="true"
                   data-tv-row="sub"
                   tabIndex={0}
-                  className="vod-bottom-btn px-5 py-1.5 sm:py-2 rounded-full bg-black/80 hover:bg-white/15 border border-white/20 text-white text-xs font-bold flex items-center gap-2 focus:ring-2 focus:ring-[var(--theme-primary,#e5a00d)] active:scale-95 transition-all shadow-md"
+                  className="vod-bottom-btn px-5 py-2 rounded-full bg-black/85 hover:bg-white/15 border border-white/20 text-white text-xs font-black flex items-center gap-2 focus:outline-none focus:ring-4 focus:ring-inset focus:ring-gold focus:bg-gold focus:text-black focus:scale-105 active:scale-95 transition-all shadow-md"
                 >
-                  <Languages className="w-4 h-4 text-zinc-300" />
+                  <Languages className="w-4 h-4" />
                   <span>{isRtl ? 'الصوت' : 'Audio'}</span>
                 </button>
 
@@ -1489,9 +1499,9 @@ export const VodPlayerModal: React.FC<VodPlayerModalProps> = ({
                   data-tv-focusable="true"
                   data-tv-row="sub"
                   tabIndex={0}
-                  className="vod-bottom-btn px-5 py-1.5 sm:py-2 rounded-full bg-black/80 hover:bg-white/15 border border-white/20 text-white text-xs font-bold flex items-center gap-2 focus:ring-2 focus:ring-[var(--theme-primary,#e5a00d)] active:scale-95 transition-all shadow-md"
+                  className="vod-bottom-btn px-5 py-2 rounded-full bg-black/85 hover:bg-white/15 border border-white/20 text-white text-xs font-black flex items-center gap-2 focus:outline-none focus:ring-4 focus:ring-inset focus:ring-gold focus:bg-gold focus:text-black focus:scale-105 active:scale-95 transition-all shadow-md"
                 >
-                  <SubtitleIcon className="w-4 h-4 text-zinc-300" />
+                  <SubtitleIcon className="w-4 h-4" />
                   <span>{isRtl ? 'الترجمة' : 'Subtitles'}</span>
                 </button>
 
@@ -1503,9 +1513,9 @@ export const VodPlayerModal: React.FC<VodPlayerModalProps> = ({
                     data-tv-focusable="true"
                     data-tv-row="sub"
                     tabIndex={0}
-                    className="vod-bottom-btn px-5 py-1.5 sm:py-2 rounded-full bg-black/80 hover:bg-white/15 border border-white/20 text-white text-xs font-bold flex items-center gap-2 disabled:opacity-40 focus:ring-2 focus:ring-[var(--theme-primary,#e5a00d)] active:scale-95 transition-all shadow-md"
+                    className="vod-bottom-btn px-5 py-2 rounded-full bg-black/85 hover:bg-white/15 border border-white/20 text-white text-xs font-black flex items-center gap-2 disabled:opacity-40 focus:outline-none focus:ring-4 focus:ring-inset focus:ring-gold focus:bg-gold focus:text-black focus:scale-105 active:scale-95 transition-all shadow-md"
                   >
-                    <Tv className="w-4 h-4 text-zinc-300" />
+                    <Tv className="w-4 h-4" />
                     <span>{isRtl ? 'الحلقة التالية' : 'Next Episode'}</span>
                   </button>
                 )}
@@ -1516,9 +1526,9 @@ export const VodPlayerModal: React.FC<VodPlayerModalProps> = ({
                   data-tv-focusable="true"
                   data-tv-row="sub"
                   tabIndex={0}
-                  className="vod-bottom-btn px-5 py-1.5 sm:py-2 rounded-full bg-black/80 hover:bg-white/15 border border-white/20 text-white text-xs font-bold flex items-center gap-2 focus:ring-2 focus:ring-[var(--theme-primary,#e5a00d)] active:scale-95 transition-all shadow-md"
+                  className="vod-bottom-btn px-5 py-2 rounded-full bg-black/85 hover:bg-white/15 border border-white/20 text-white text-xs font-black flex items-center gap-2 focus:outline-none focus:ring-4 focus:ring-inset focus:ring-gold focus:bg-gold focus:text-black focus:scale-105 active:scale-95 transition-all shadow-md"
                 >
-                  <RotateCcw className="w-4 h-4 text-zinc-300" />
+                  <RotateCcw className="w-4 h-4" />
                   <span>{isRtl ? 'رجوع' : 'Back'}</span>
                 </button>
               </div>
@@ -1548,7 +1558,7 @@ export const VodPlayerModal: React.FC<VodPlayerModalProps> = ({
                     key={tr.id}
                     onClick={() => handleSelectAudioTrack(tr.id)}
                     tabIndex={0}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-colors focus:ring-2 focus:ring-gold ${
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-colors focus:ring-2 focus:ring-inset focus:ring-gold ${
                       selectedAudioTrack === tr.id
                         ? 'bg-gold/20 text-gold border border-gold/40'
                         : 'text-gray-200 hover:bg-gray-800'
@@ -1586,7 +1596,7 @@ export const VodPlayerModal: React.FC<VodPlayerModalProps> = ({
               <button
                 onClick={() => handleSelectSubtitle(-1)}
                 tabIndex={0}
-                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-colors focus:ring-2 focus:ring-gold ${
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-colors focus:ring-2 focus:ring-inset focus:ring-gold ${
                   selectedSubtitle === -1
                     ? 'bg-gold/20 text-gold border border-gold/40'
                     : 'text-gray-200 hover:bg-gray-800'
@@ -1601,7 +1611,7 @@ export const VodPlayerModal: React.FC<VodPlayerModalProps> = ({
                   key={sub.id}
                   onClick={() => handleSelectSubtitle(sub.id)}
                   tabIndex={0}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-colors focus:ring-2 focus:ring-gold ${
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-colors focus:ring-2 focus:ring-inset focus:ring-gold ${
                     selectedSubtitle === sub.id
                       ? 'bg-gold/20 text-gold border border-gold/40'
                       : 'text-gray-200 hover:bg-gray-800'
@@ -1616,7 +1626,7 @@ export const VodPlayerModal: React.FC<VodPlayerModalProps> = ({
             <button
               onClick={() => setActivePopup('subtitle-settings')}
               tabIndex={0}
-              className="w-full flex items-center justify-center gap-2 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-xs font-semibold text-gold border border-gray-700 focus:ring-2 focus:ring-gold"
+              className="w-full flex items-center justify-center gap-2 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-xs font-semibold text-gold border border-gray-700 focus:ring-2 focus:ring-inset focus:ring-gold"
             >
               <Settings className="w-3.5 h-3.5" />
               {isRtl ? 'تخصيص الحجم / اللون / المزامنة' : 'Customize Size / Color / Sync'}
@@ -1645,7 +1655,7 @@ export const VodPlayerModal: React.FC<VodPlayerModalProps> = ({
                 <button
                   onClick={() => handleSubSyncChange(-0.5)}
                   tabIndex={0}
-                  className="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded-lg text-xs font-bold text-gold focus:ring-2 focus:ring-gold"
+                  className="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded-lg text-xs font-bold text-gold focus:ring-2 focus:ring-inset focus:ring-gold"
                 >
                   -0.5s
                 </button>
@@ -1653,7 +1663,7 @@ export const VodPlayerModal: React.FC<VodPlayerModalProps> = ({
                 <button
                   onClick={() => handleSubSyncChange(0.5)}
                   tabIndex={0}
-                  className="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded-lg text-xs font-bold text-gold focus:ring-2 focus:ring-gold"
+                  className="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded-lg text-xs font-bold text-gold focus:ring-2 focus:ring-inset focus:ring-gold"
                 >
                   +0.5s
                 </button>
@@ -1668,7 +1678,7 @@ export const VodPlayerModal: React.FC<VodPlayerModalProps> = ({
                     key={sz}
                     onClick={() => setSubFontSize(sz)}
                     tabIndex={0}
-                    className={`py-1.5 rounded-lg text-xs font-bold uppercase border focus:ring-2 focus:ring-gold ${
+                    className={`py-1.5 rounded-lg text-xs font-bold uppercase border focus:ring-2 focus:ring-inset focus:ring-gold ${
                       subFontSize === sz
                         ? 'bg-gold text-black border-gold'
                         : 'bg-gray-800 text-gray-300 border-gray-700'
@@ -1693,7 +1703,7 @@ export const VodPlayerModal: React.FC<VodPlayerModalProps> = ({
                     key={c.color}
                     onClick={() => setSubColor(c.color)}
                     tabIndex={0}
-                    className="w-7 h-7 rounded-full border-2 focus:ring-2 focus:ring-gold flex items-center justify-center"
+                    className="w-7 h-7 rounded-full border-2 focus:ring-2 focus:ring-inset focus:ring-gold flex items-center justify-center"
                     style={{ backgroundColor: c.color, borderColor: subColor === c.color ? 'var(--theme-primary, #e5a00d)' : 'transparent' }}
                   >
                     {subColor === c.color && <Check className="w-4 h-4 text-black" />}
@@ -1714,7 +1724,7 @@ export const VodPlayerModal: React.FC<VodPlayerModalProps> = ({
                     key={bg.id}
                     onClick={() => setSubBg(bg.id as any)}
                     tabIndex={0}
-                    className={`py-1.5 rounded-lg text-xs font-bold border focus:ring-2 focus:ring-gold ${
+                    className={`py-1.5 rounded-lg text-xs font-bold border focus:ring-2 focus:ring-inset focus:ring-gold ${
                       subBg === bg.id
                         ? 'bg-gold text-black border-gold'
                         : 'bg-gray-800 text-gray-300 border-gray-700'
@@ -1747,7 +1757,7 @@ export const VodPlayerModal: React.FC<VodPlayerModalProps> = ({
               <button
                 onClick={() => handleSelectQuality(-1)}
                 tabIndex={0}
-                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-colors focus:ring-2 focus:ring-gold ${
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-colors focus:ring-2 focus:ring-inset focus:ring-gold ${
                   selectedQuality === -1
                     ? 'bg-gold/20 text-gold border border-gold/40'
                     : 'text-gray-200 hover:bg-gray-800'
@@ -1762,7 +1772,7 @@ export const VodPlayerModal: React.FC<VodPlayerModalProps> = ({
                   key={q.id}
                   onClick={() => handleSelectQuality(q.id)}
                   tabIndex={0}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-colors focus:ring-2 focus:ring-gold ${
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-colors focus:ring-2 focus:ring-inset focus:ring-gold ${
                     selectedQuality === q.id
                       ? 'bg-gold/20 text-gold border border-gold/40'
                       : 'text-gray-200 hover:bg-gray-800'
@@ -1806,7 +1816,7 @@ export const VodPlayerModal: React.FC<VodPlayerModalProps> = ({
                     setActivePopup('none');
                   }}
                   tabIndex={0}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-colors focus:ring-2 focus:ring-gold ${
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-colors focus:ring-2 focus:ring-inset focus:ring-gold ${
                     aspectRatio === mode.id
                       ? 'bg-gold/20 text-gold border border-gold/40'
                       : 'text-gray-200 hover:bg-gray-800'
@@ -1845,7 +1855,7 @@ export const VodPlayerModal: React.FC<VodPlayerModalProps> = ({
                     setActivePopup('none');
                   }}
                   tabIndex={0}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-colors focus:ring-2 focus:ring-gold ${
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-colors focus:ring-2 focus:ring-inset focus:ring-gold ${
                     playbackSpeed === speed
                       ? 'bg-gold/20 text-gold border border-gold/40'
                       : 'text-gray-200 hover:bg-gray-800'
@@ -1889,7 +1899,7 @@ export const VodPlayerModal: React.FC<VodPlayerModalProps> = ({
                     setActivePopup('none');
                   }}
                   tabIndex={0}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-colors focus:ring-2 focus:ring-gold ${
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-colors focus:ring-2 focus:ring-inset focus:ring-gold ${
                     sleepTimerMinutes === opt.min
                       ? 'bg-gold/20 text-gold border border-gold/40'
                       : 'text-gray-200 hover:bg-gray-800'
@@ -1933,7 +1943,7 @@ export const VodPlayerModal: React.FC<VodPlayerModalProps> = ({
                       setActivePopup('none');
                     }}
                     tabIndex={0}
-                    className={`w-full p-3 rounded-xl border text-right transition-all flex items-center justify-between gap-3 focus:ring-2 focus:ring-gold ${
+                    className={`w-full p-3 rounded-xl border text-right transition-all flex items-center justify-between gap-3 focus:ring-2 focus:ring-inset focus:ring-gold ${
                       isCurrent
                         ? 'bg-gold/20 border-gold text-gold shadow-md'
                         : 'bg-gray-800/60 border-gray-700/60 text-gray-200 hover:bg-gray-800'

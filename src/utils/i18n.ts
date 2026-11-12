@@ -130,6 +130,11 @@ export const translations = {
     small: 'صغير',
     medium: 'متوسط',
     large: 'كبير',
+    ai_scan: 'مسح بالذكاء الاصطناعي',
+    ai_analyzing: 'جاري التحليل بالذكاء الاصطناعي...',
+    ai_extracted: 'مستخرج بالذكاء الاصطناعي',
+    ai_error: 'فشل تحليل الصورة بالذكاء الاصطناعي',
+    ai_discovery: 'اكتشاف القنوات الذكي',
   },
   en: {
     dashboard: 'Dashboard',
@@ -260,6 +265,11 @@ export const translations = {
     small: 'Small',
     medium: 'Medium',
     large: 'Large',
+    ai_scan: 'AI Scan',
+    ai_analyzing: 'AI Analyzing...',
+    ai_extracted: 'AI Extracted',
+    ai_error: 'AI Analysis failed',
+    ai_discovery: 'AI Channel Discovery',
   },
   de: {
     dashboard: 'Dashboard',
@@ -390,6 +400,11 @@ export const translations = {
     small: 'Klein',
     medium: 'Mittel',
     large: 'Groß',
+    ai_scan: 'KI-Scan',
+    ai_analyzing: 'KI analysiert...',
+    ai_extracted: 'KI extrahiert',
+    ai_error: 'KI-Analyse fehlgeschlagen',
+    ai_discovery: 'KI-Senderentdeckung',
   },
   fr: {
     dashboard: 'Tableau de bord',
@@ -520,6 +535,11 @@ export const translations = {
     small: 'Petit',
     medium: 'Moyen',
     large: 'Grand',
+    ai_scan: 'Scan IA',
+    ai_analyzing: 'Analyse IA...',
+    ai_extracted: 'Extrait par IA',
+    ai_error: 'Échec de l\'analyse IA',
+    ai_discovery: 'Découverte de chaînes IA',
   },
 };
 

@@ -86,7 +86,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
             type="text"
             value={filename}
             onChange={(e) => onChangeFilename?.(e.target.value)}
-            className="bg-transparent border-none text-slate-200 font-mono text-xs focus:ring-1 focus:ring-indigo-500 rounded px-1.5 py-0.5 outline-none w-44"
+            className="bg-transparent border-none text-slate-200 font-mono text-xs focus:ring-1 focus:ring-inset focus:ring-indigo-500 rounded px-1.5 py-0.5 outline-none w-44"
             placeholder="اسم الملف (مثال: App.jsx)"
           />
           <span className="text-[11px] text-slate-500 hidden sm:inline">

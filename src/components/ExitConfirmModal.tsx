@@ -43,7 +43,7 @@ export default function ExitConfirmModal({
     const handleKeyDown = (e: KeyboardEvent) => {
       const action = parseTVKeyEvent(e);
 
-      if (action === 'LEFT' || action === 'RIGHT') {
+      if (action === 'LEFT' || action === 'RIGHT' || action === 'UP' || action === 'DOWN' || e.key === 'Tab') {
         e.preventDefault();
         e.stopPropagation();
         setSelectedAction(prev => {
@@ -52,12 +52,6 @@ export default function ExitConfirmModal({
           if (next === 'yes' && exitBtnRef.current) exitBtnRef.current.focus();
           return next;
         });
-        return;
-      }
-
-      if (action === 'UP' || action === 'DOWN') {
-        e.preventDefault();
-        e.stopPropagation();
         return;
       }
 
@@ -91,6 +85,9 @@ export default function ExitConfirmModal({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
+          role="dialog"
+          aria-modal="true"
+          data-tv-modal="true"
           className="fixed inset-0 z-[999] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 sm:p-6"
           onClick={onCancel}
         >

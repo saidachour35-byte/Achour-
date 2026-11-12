@@ -194,7 +194,7 @@ const LiveChannelRow: React.FC<{
           onSelectChannel(ch);
           if (onDoubleClickChannel) onDoubleClickChannel(ch);
         }}
-        className={`w-full h-full flex items-center gap-2 px-2 rounded-xl border transition-all relative group cursor-pointer outline-none focus:outline-none focus:ring-4 focus:ring-gold focus:ring-inset focus:bg-gold/25 focus:z-30 ${
+        className={`w-full h-full flex items-center gap-2 px-2 rounded-xl border transition-all relative group cursor-pointer outline-none focus:outline-none focus:ring-2 focus:ring-inset focus:ring-gold focus:ring-inset focus:bg-gold/25 focus:z-30 ${
           isSelected
             ? 'bg-gold/15 text-white border-gold/40 shadow-inner font-semibold'
             : 'border-transparent text-zinc-300 hover:bg-white/5 hover:text-white'
@@ -402,12 +402,11 @@ export const VirtualizedChannelList: React.FC<VirtualizedListProps> = ({
       ref={containerRef}
       onScroll={handleScroll}
       data-channel-list-container="true"
-      className="relative w-full h-full overflow-y-auto overflow-x-hidden no-scrollbar"
-      tabIndex={0}
+      className="relative w-full h-full overflow-y-auto overflow-x-hidden no-scrollbar outline-none"
     >
       {mediaType === 'movie' || mediaType === 'series' ? (
         /* VIRTUALIZED POSTER GRID FOR MOVIES & SERIES */
-        <div style={{ height: `${gridVirtualBounds.totalHeight}px`, position: 'relative', width: '100%' }}>
+        <div style={{ height: `${gridVirtualBounds.totalHeight}px`, position: 'relative', width: '100%' }} className="outline-none ring-0 border-0">
           {gridVirtualBounds.visibleRows.map(row => (
             <div
               key={`row-${row.rowIndex}`}
@@ -438,7 +437,7 @@ export const VirtualizedChannelList: React.FC<VirtualizedListProps> = ({
                       onSelectChannel(ch);
                       if (fetchMediaDetails) fetchMediaDetails(ch);
                     }}
-                    className={`relative h-full rounded-2xl border-2 overflow-hidden cursor-pointer group transition-all duration-150 shadow-md outline-none focus:outline-none focus:border-gold focus:border-4 focus:ring-4 focus:ring-gold focus:scale-105 focus:shadow-[0_0_35px_rgba(229,160,13,0.9)] focus:z-50 ${
+                    className={`relative h-full rounded-2xl border-2 overflow-hidden cursor-pointer group transition-all duration-150 shadow-md outline-none focus:outline-none focus:ring-2 focus:ring-inset focus:ring-gold focus:ring-inset focus:scale-[1.03] focus:shadow-[0_0_30px_rgba(212,175,55,0.5)] focus:z-50 ${
                       isSelected
                         ? 'border-gold bg-gold/20 shadow-[0_0_20px_rgba(212,175,55,0.6)]'
                         : 'border-white/20 hover:border-gold/80 bg-zinc-950'
@@ -496,7 +495,7 @@ export const VirtualizedChannelList: React.FC<VirtualizedListProps> = ({
         </div>
       ) : (
         /* VIRTUALIZED LIST FOR LIVE CHANNELS */
-        <div style={{ height: `${listVirtualBounds.totalHeight}px`, position: 'relative', width: '100%' }}>
+        <div style={{ height: `${listVirtualBounds.totalHeight}px`, position: 'relative', width: '100%' }} className="outline-none ring-0 border-0">
           {listVirtualBounds.visibleItems.map(({ item: ch, originalIndex: idx, top }) => (
             <LiveChannelRow
               key={`${ch.stream_id}-${idx}`}

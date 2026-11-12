@@ -13,6 +13,7 @@ import PinUnlockModal from './PinUnlockModal';
 import VodPlayerModal from './VodPlayerModal';
 import EPGGrid from './EPGGrid';
 import VirtualizedChannelList from './VirtualizedChannelList';
+import PositionEditModal from './PositionEditModal';
 import logoImg from '../assets/logo';
 import { collection, query, where, getDocs, doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
@@ -158,10 +159,10 @@ const CategoryButton = React.memo(({ cat, catIdx, isSelected, onSelect, onReorde
       data-index={catIdx + 1}
       {...longPress}
       onClick={() => onSelect(cat.category_id)}
-      className={`w-full flex items-center justify-between px-3.5 py-3 sm:py-3.5 text-xs sm:text-sm md:text-base font-black transition-all border-b border-white/5 focus:outline-none focus:ring-2 focus:ring-gold focus:bg-gold/25 cursor-pointer outline-none ${
+      className={`w-full flex items-center justify-between px-3.5 py-3 sm:py-3.5 text-xs sm:text-sm md:text-base font-black transition-colors border-b border-white/5 cursor-pointer outline-none focus:outline-none focus:ring-2 focus:ring-inset focus:ring-gold focus:ring-inset focus:bg-gold/30 focus:shadow-[0_0_15px_rgba(212,175,55,0.4)] ${
         isSelected
-          ? 'bg-gold/20 text-white border-l-4 border-l-gold shadow-inner font-black'
-          : 'text-zinc-300 hover:bg-white/10 hover:text-white'
+          ? 'bg-white/10 text-gold border-l-4 border-l-gold'
+          : 'text-zinc-300 hover:bg-white/5 hover:text-white'
       }`}
     >
       <span className="truncate pr-1 text-xs sm:text-sm md:text-base font-black leading-snug">{cat.category_name}</span>
@@ -172,75 +173,7 @@ const CategoryButton = React.memo(({ cat, catIdx, isSelected, onSelect, onReorde
   );
 });
 
-const ChannelListItem = React.memo(({ ch, idx, isSelected, isFav, onSelect, onToggleFavorite, onReorder, onMove, isRtl, totalCount, channels, onDoubleClick }: any) => {
-  const longPress = useLongPress(() => {
-    const realIdx = channels.findIndex((c: any) => c.stream_id === ch.stream_id);
-    onReorder({ type: 'channel', id: ch.stream_id, index: realIdx, name: ch.name });
-  }, 400, !!onReorder);
 
-  const handleClick = (e: React.MouseEvent | React.TouchEvent) => {
-    onSelect(ch);
-    if (onDoubleClick) {
-      onDoubleClick(ch);
-    }
-  };
-
-  return (
-    <div
-      role="button"
-      tabIndex={0}
-      data-tv-focusable="true"
-      data-tv-pane="channels"
-      {...longPress}
-      onClick={handleClick}
-      onKeyDown={(e) => {
-        if (longPress.onKeyDown) longPress.onKeyDown(e as any);
-        if (e.key === 'Enter' || e.key === 'Select' || e.keyCode === 13 || e.keyCode === 23) {
-          handleClick(e as any);
-        }
-      }}
-      onKeyUp={longPress.onKeyUp as any}
-      onDoubleClick={(e) => {
-        e.stopPropagation();
-        onSelect(ch);
-        if (onDoubleClick) {
-          onDoubleClick(ch);
-        }
-      }}
-      className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl border transition-all relative group cursor-pointer ${
-        isSelected 
-          ? 'bg-gold/20 text-white border-gold shadow-sm' 
-          : 'border-transparent text-zinc-400 hover:bg-white/5 hover:text-zinc-200'
-      } ${isRtl ? 'flex-row-reverse text-right' : 'text-left'}`}
-    >
-      <span 
-        className="w-5 text-[10px] text-gold font-mono font-bold shrink-0 text-center select-none"
-        tabIndex={-1}
-      >
-        {idx + 1}
-      </span>
-      <div className="w-7 h-7 aspect-square rounded-lg bg-black/60 flex items-center justify-center overflow-hidden shrink-0 border border-white/10 shadow-sm">
-        {(ch.stream_icon || ch.logo || ch.cover) ? (
-          <img 
-            src={ch.stream_icon || ch.logo || ch.cover} 
-            referrerPolicy="no-referrer"
-            loading="lazy"
-            decoding="async"
-            className="w-full h-full object-cover" 
-            onError={(e) => (e.currentTarget.style.display = 'none')} 
-            alt="" 
-          />
-        ) : (
-          <Play size={11} className={isSelected ? 'text-gold' : 'text-zinc-600'} />
-        )}
-      </div>
-      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-        <span className="text-[10px] sm:text-[11px] font-bold truncate leading-snug text-zinc-200">{ch.name}</span>
-        <span className="text-[8px] font-bold text-gold/50 truncate uppercase tracking-tight">{ch.category_name || 'General'}</span>
-      </div>
-    </div>
-  );
-});
 
 const getAspectRatioClass = (ratio: string) => {
   if (ratio === '16:9') return 'w-full h-full object-contain aspect-video bg-black mx-auto';
@@ -478,6 +411,7 @@ export default function LivePlayer({ onBack, settings, onUpdateSettings, userId,
   const tvFocusedControlIndex = useRef<number>(0);
 
   const previewDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  const categoryNavDebounceRef = useRef<NodeJS.Timeout | null>(null);
   const currentHighlightedChannelRef = useRef<string | null>(null);
   const filteredChannelsRef = useRef<ParsedChannel[]>([]);
   const handleHighlightChannelRef = useRef<(ch: ParsedChannel) => void>(() => {});
@@ -489,6 +423,9 @@ export default function LivePlayer({ onBack, settings, onUpdateSettings, userId,
     return () => {
       if (previewDebounceRef.current) {
         clearTimeout(previewDebounceRef.current);
+      }
+      if (categoryNavDebounceRef.current) {
+        clearTimeout(categoryNavDebounceRef.current);
       }
     };
   }, []);
@@ -945,11 +882,18 @@ export default function LivePlayer({ onBack, settings, onUpdateSettings, userId,
       // Don't intercept typing in search / text inputs: only blur on real escape / back keys, NEVER on Backspace!
       if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
         const isTrueEscape = key === 'Escape' || key === 'GoBack' || code === 10009 || code === 461 || code === 27;
+        const isNavKey = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(key) || (code >= 37 && code <= 40);
+        
         if (isTrueEscape) {
           (document.activeElement as HTMLElement).blur();
           e.preventDefault();
+          return;
         }
-        return;
+        
+        // If it's a navigation key, we allow the rest of the function to handle it
+        if (!isNavKey) {
+          return;
+        }
       }
 
       // Handle Back button on TV Remote for any open modals / overlays
@@ -1147,69 +1091,8 @@ export default function LivePlayer({ onBack, settings, onUpdateSettings, userId,
         return;
       }
 
-      // Fullscreen Player Navigation
+      // In Fullscreen mode, VodPlayerModal directly handles all D-pad navigation and control bar interactions
       if (isFullscreen) {
-        const playerFocusables = Array.from(document.querySelectorAll<HTMLElement>('[data-tv-pane="player"], [data-tv-pane="player-controls"]'));
-        const activeIdx = playerFocusables.findIndex(el => el === document.activeElement);
-        const activeEl = activeIdx !== -1 ? playerFocusables[activeIdx] : null;
-        const isSlotFocused = activeEl?.getAttribute('data-tv-pane') === 'player';
-        
-        if (key === 'ArrowDown' || code === 40) {
-           e.preventDefault();
-           if (!showControls && !isSlotFocused) {
-             setShowControls(true);
-             const firstCtrl = playerFocusables.find(el => el.getAttribute('data-tv-pane') === 'player-controls');
-             firstCtrl?.focus();
-             return;
-           }
-           
-           if (isSlotFocused) {
-              setShowControls(true);
-              const firstCtrl = playerFocusables.find(el => el.getAttribute('data-tv-pane') === 'player-controls');
-              firstCtrl?.focus();
-           } else {
-             const next = Math.min(playerFocusables.length - 1, activeIdx + 1);
-             playerFocusables[next]?.focus();
-           }
-        } else if (key === 'ArrowUp' || code === 38) {
-           e.preventDefault();
-           if (isSlotFocused) {
-             if (!isFullscreen) {
-               tvFocusedPane.current = 'header';
-               const headerTabs = Array.from(document.querySelectorAll<HTMLElement>('[data-tv-pane="header"]'));
-               headerTabs[1]?.focus();
-             }
-           } else {
-             const prevIdx = activeIdx - 1;
-             if (prevIdx >= 0) {
-               playerFocusables[prevIdx]?.focus();
-             } else {
-                // Focus slot
-                playerFocusables[0]?.focus();
-             }
-           }
-        } else if (key === 'ArrowRight' || code === 39) {
-           e.preventDefault();
-           const step = isRtl ? -1 : 1;
-           const next = Math.max(0, Math.min(playerFocusables.length - 1, activeIdx + step));
-           playerFocusables[next]?.focus();
-        } else if (key === 'ArrowLeft' || code === 37) {
-           e.preventDefault();
-           const step = isRtl ? 1 : -1;
-           const next = Math.max(0, Math.min(playerFocusables.length - 1, activeIdx + step));
-           playerFocusables[next]?.focus();
-        } else if (key === 'Enter' || code === 13 || key === 'Select' || code === 23) {
-           e.preventDefault();
-           if (activeIdx !== -1) {
-              if (isSlotFocused) {
-                toggleControlsVisibility();
-              } else {
-                playerFocusables[activeIdx].click();
-              }
-           } else {
-             toggleControlsVisibility();
-           }
-        }
         return;
       }
 
@@ -1225,14 +1108,20 @@ export default function LivePlayer({ onBack, settings, onUpdateSettings, userId,
 
           if (key === 'ArrowDown' || code === 40) {
             e.preventDefault();
-            tvFocusedPane.current = 'channels';
-            const chItems = document.querySelectorAll<HTMLElement>('[data-tv-pane="channels"]');
+            const chItems = Array.from(document.querySelectorAll<HTMLElement>('[data-tv-pane="channels"]')).filter(el => el.offsetWidth > 0);
             if (chItems.length > 0) {
+              tvFocusedPane.current = 'channels';
+              tvFocusedChannelIndex.current = 0;
               chItems[0].focus();
+              chItems[0].scrollIntoView({ block: 'nearest', inline: 'nearest' });
             } else {
               tvFocusedPane.current = 'categories';
-              const catButtons = document.querySelectorAll<HTMLElement>('[data-tv-pane="categories"]');
-              catButtons[0]?.focus();
+              const catButtons = Array.from(document.querySelectorAll<HTMLElement>('[data-tv-pane="categories"]')).filter(el => el.offsetWidth > 0);
+              if (catButtons.length > 0) {
+                tvFocusedCatIndex.current = 0;
+                catButtons[0].focus();
+                catButtons[0].scrollIntoView({ block: 'nearest', inline: 'nearest' });
+              }
             }
           } else if (key === 'ArrowRight' || code === 39) {
             e.preventDefault();
@@ -1262,8 +1151,12 @@ export default function LivePlayer({ onBack, settings, onUpdateSettings, userId,
           const next = Math.min(catButtons.length - 1, cur + 1);
           tvFocusedCatIndex.current = next;
           catButtons[next]?.focus();
-          catButtons[next]?.click();
           catButtons[next]?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+
+          if (categoryNavDebounceRef.current) clearTimeout(categoryNavDebounceRef.current);
+          categoryNavDebounceRef.current = setTimeout(() => {
+            catButtons[next]?.click();
+          }, 150);
         } else if (key === 'ArrowUp' || code === 38) {
           e.preventDefault();
           if (cur === 0) {
@@ -1275,8 +1168,12 @@ export default function LivePlayer({ onBack, settings, onUpdateSettings, userId,
             const next = cur - 1;
             tvFocusedCatIndex.current = next;
             catButtons[next]?.focus();
-            catButtons[next]?.click();
             catButtons[next]?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+
+            if (categoryNavDebounceRef.current) clearTimeout(categoryNavDebounceRef.current);
+            categoryNavDebounceRef.current = setTimeout(() => {
+              catButtons[next]?.click();
+            }, 150);
           }
         } else if ((key === 'ArrowRight' && !isRtl) || (key === 'ArrowLeft' && isRtl) || key === 'Enter' || code === 13 || key === 'Select' || code === 23) {
           e.preventDefault();
@@ -2578,16 +2475,38 @@ export default function LivePlayer({ onBack, settings, onUpdateSettings, userId,
                 }
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className={`w-full bg-zinc-950/80 border border-gold/40 focus:border-gold focus:ring-2 focus:ring-gold/50 rounded-2xl py-2 ${isRtl ? 'pr-10 pl-4' : 'pl-10 pr-4'} text-xs sm:text-sm text-white placeholder-zinc-400 outline-none transition-all shadow-inner`}
+                onKeyDown={(e) => {
+                  if (e.key === 'ArrowDown' || e.keyCode === 40) {
+                    e.preventDefault();
+                    const chItems = Array.from(document.querySelectorAll<HTMLElement>('[data-tv-pane="channels"]')).filter(el => el.offsetWidth > 0);
+                    if (chItems.length > 0) {
+                      tvFocusedPane.current = 'channels';
+                      tvFocusedChannelIndex.current = 0;
+                      chItems[0].focus();
+                      chItems[0].scrollIntoView({ block: 'nearest', inline: 'nearest' });
+                    }
+                  }
+                }}
+                className={`w-full bg-zinc-950/80 border border-gold/40 focus:border-gold focus:ring-2 focus:ring-inset focus:ring-gold focus:ring-inset rounded-2xl py-2 ${isRtl ? 'pr-10 pl-4' : 'pl-10 pr-4'} text-xs sm:text-sm text-white placeholder-zinc-400 outline-none transition-all shadow-inner`}
               />
-              {search && (
+              <div className={`absolute ${isRtl ? 'left-2' : 'right-2'} top-1/2 -translate-y-1/2 flex items-center gap-1`}>
                 <button
-                  onClick={() => setSearch('')}
-                  className={`absolute ${isRtl ? 'left-3' : 'right-3'} top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white p-1`}
+                  data-tv-focusable="true"
+                  onClick={() => setShowOcr(true)}
+                  className="p-1.5 bg-gold/10 hover:bg-gold/20 text-gold rounded-lg transition-all"
+                  title={t('ai_discovery')}
                 >
-                  <X size={14} />
+                  <Sparkles size={14} className="animate-pulse" />
                 </button>
-              )}
+                {search && (
+                  <button
+                    onClick={() => setSearch('')}
+                    className="text-zinc-400 hover:text-white p-1"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
@@ -2699,7 +2618,7 @@ export default function LivePlayer({ onBack, settings, onUpdateSettings, userId,
             </span>
           </div>
 
-          <div className="flex-1 overflow-hidden p-1.5 sm:p-2">
+          <div className="flex-1 overflow-hidden p-1.5 sm:p-2 outline-none ring-0 border-0">
             {loading && filteredChannels.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center gap-3 text-gold p-4 text-center">
                 <div className="w-8 h-8 border-2 border-gold border-t-transparent rounded-full animate-spin shadow-lg shadow-gold/20" />
@@ -2738,7 +2657,9 @@ export default function LivePlayer({ onBack, settings, onUpdateSettings, userId,
           <main className="flex-1 flex flex-col bg-black/20 relative min-w-0 h-full overflow-hidden p-2 sm:p-3">
             {/* Top Player Section - Small Video Player */}
             <div 
-              className="w-full aspect-video max-h-[45%] bg-black rounded-2xl overflow-hidden border border-white/10 shadow-2xl relative group cursor-pointer"
+              data-tv-focusable="true"
+              tabIndex={0}
+              className="w-full aspect-video max-h-[45%] bg-black rounded-2xl overflow-hidden border border-white/10 shadow-2xl relative group cursor-pointer focus:outline-none focus:ring-2 focus:ring-inset focus:ring-gold focus:ring-inset"
               onClick={() => selectedChannel && handleOpenFullscreen(selectedChannel)}
             >
               <div id="live-preview-container" className="w-full h-full"></div>
@@ -2824,7 +2745,7 @@ export default function LivePlayer({ onBack, settings, onUpdateSettings, userId,
                   data-tv-modal="details"
                   tabIndex={0}
                   onClick={() => setMovieDetailsModal(null)}
-                  className="p-1.5 text-zinc-400 hover:text-white focus:text-gold focus:ring-4 focus:ring-gold rounded-full transition-all outline-none"
+                  className="p-1.5 text-zinc-400 hover:text-white focus:text-gold focus:ring-4 focus:ring-inset focus:ring-gold rounded-full transition-all outline-none"
                   title={isRtl ? 'إغلاق (Esc)' : 'Close (Esc)'}
                 >
                   <X size={16} />
@@ -2949,7 +2870,7 @@ export default function LivePlayer({ onBack, settings, onUpdateSettings, userId,
                               data-season-tab="true"
                               tabIndex={0}
                               onClick={() => setSelectedSeasonNum(s.seasonNumber)}
-                              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all border outline-none focus:ring-4 focus:ring-gold focus:scale-105 ${
+                              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all border outline-none focus:ring-4 focus:ring-inset focus:ring-gold focus:scale-105 ${
                                 isSelected
                                   ? 'bg-gold text-black border-gold shadow-[0_0_12px_rgba(212,175,55,0.4)]'
                                   : 'bg-white/5 border-white/10 text-zinc-300 hover:text-white hover:border-gold/40'
@@ -2976,7 +2897,7 @@ export default function LivePlayer({ onBack, settings, onUpdateSettings, userId,
                               setActiveVodPlayer(ep);
                               setMovieDetailsModal(null);
                             }}
-                            className="flex items-center justify-between p-2.5 rounded-xl bg-black/60 border border-white/10 hover:border-gold/60 hover:bg-gold/15 focus:ring-4 focus:ring-gold focus:border-gold focus:bg-gold/25 focus:scale-[1.01] transition-all group cursor-pointer outline-none"
+                            className="flex items-center justify-between p-2.5 rounded-xl bg-black/60 border border-white/10 hover:border-gold/60 hover:bg-gold/15 focus:ring-4 focus:ring-inset focus:ring-gold focus:border-gold focus:bg-gold/25 focus:scale-[1.01] transition-all group cursor-pointer outline-none"
                           >
                               <div className="w-8 h-8 rounded-lg bg-gold/20 flex items-center justify-center text-gold font-mono font-bold group-hover:scale-110 shrink-0 transition-transform">
                                 {ep.episode || epIdx + 1}
@@ -3008,7 +2929,7 @@ export default function LivePlayer({ onBack, settings, onUpdateSettings, userId,
                       setActiveVodPlayer(movieDetailsModal);
                       setMovieDetailsModal(null);
                     }}
-                    className="px-3.5 py-1 bg-gold hover:bg-gold/90 text-black rounded-md text-[11px] font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 focus:outline-none focus:ring-1 focus:ring-white transition-all shadow-sm"
+                    className="px-3.5 py-1 bg-gold hover:bg-gold/90 text-black rounded-md text-[11px] font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 focus:outline-none focus:ring-1 focus:ring-inset focus:ring-white transition-all shadow-sm"
                   >
                     <Play size={12} className="fill-black" />
                     <span>{isRtl ? 'تشغيل' : 'Play'}</span>
@@ -3019,7 +2940,7 @@ export default function LivePlayer({ onBack, settings, onUpdateSettings, userId,
                   data-tv-modal="details"
                   tabIndex={0}
                   onClick={() => toggleFavorite(movieDetailsModal.stream_id)}
-                  className={`p-1.5 rounded-md border transition-all outline-none focus:outline-none focus:ring-1 focus:ring-white flex items-center justify-center ${
+                  className={`p-1.5 rounded-md border transition-all outline-none focus:outline-none focus:ring-1 focus:ring-inset focus:ring-white flex items-center justify-center ${
                     favorites.includes(movieDetailsModal.stream_id) ? 'bg-gold text-black border-gold' : 'bg-white/5 border-white/10 text-zinc-300 hover:border-gold'
                   }`}
                   title={isRtl ? 'المفضلة' : 'Favorite'}
@@ -3035,259 +2956,17 @@ export default function LivePlayer({ onBack, settings, onUpdateSettings, userId,
       {/* Position Reorder & Channel Actions Strip Modal */}
       <AnimatePresence>
         {reorderTarget && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md select-none"
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className={`w-full max-w-md bg-zinc-950 border-2 border-gold/50 rounded-3xl p-5 shadow-2xl flex flex-col space-y-4 ${isRtl ? 'font-cairo text-right' : 'text-left'}`}
-            >
-              {/* Header */}
-              <div className={`flex items-center justify-between pb-3 border-b border-white/10 ${isRtl ? 'flex-row-reverse' : ''}`}>
-                <div className={`flex items-center gap-2.5 min-w-0 ${isRtl ? 'flex-row-reverse' : ''}`}>
-                  <div className="w-8 h-8 rounded-xl bg-gold/20 flex items-center justify-center text-gold shrink-0">
-                    <Move size={18} />
-                  </div>
-                  <div className="flex flex-col min-w-0">
-                    <h3 className="text-sm font-black text-white uppercase tracking-wider truncate">
-                      {reorderTarget.name}
-                    </h3>
-                    <span className="text-[10px] font-mono font-bold text-gold">
-                      {isRtl ? 'الترتيب الحالي:' : 'Current position:'} #{reorderTarget.index + 1}
-                    </span>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setReorderTarget(null)}
-                  data-tv-modal="reorder"
-                  data-tv-focusable="true"
-                  tabIndex={0}
-                  className="p-1.5 text-zinc-400 hover:text-white rounded-full hover:bg-white/10 focus:ring-2 focus:ring-gold"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-
-              {/* Fast Jump to #1 Button */}
-              <button
-                onClick={handleJumpToFirst}
-                data-tv-modal="reorder"
-                data-tv-focusable="true"
-                tabIndex={0}
-                className="w-full py-2.5 px-3 bg-gold/15 hover:bg-gold hover:text-black border border-gold/40 hover:border-gold text-gold rounded-2xl flex items-center justify-center gap-2 font-black text-xs transition-all active:scale-95 focus:ring-2 focus:ring-gold"
-                title={isRtl ? 'نقل مباشرة إلى رقم 1' : 'Jump directly to #1'}
-              >
-                <ChevronsUp size={16} />
-                <span>{isRtl ? '⚡ نقل مباشر للمركز الأول #1' : '⚡ Jump to First #1'}</span>
-              </button>
-
-              {/* Fast Step Movement Buttons */}
-              <div className="space-y-1.5">
-                <span className="text-[11px] font-bold text-zinc-300 block">
-                  {isRtl ? 'تحريك ونقل القناة في القائمة:' : 'Move channel in list:'}
-                </span>
-                <div className="grid grid-cols-2 gap-2.5">
-                  <button
-                    onClick={() => handleMoveStep('up')}
-                    data-tv-modal="reorder"
-                    data-tv-move-up="true"
-                    data-tv-focusable="true"
-                    tabIndex={0}
-                    className="py-3 px-3 bg-white/10 hover:bg-gold hover:text-black border border-white/20 hover:border-gold text-white rounded-2xl flex items-center justify-center gap-2 font-black text-xs transition-all active:scale-95 focus:ring-2 focus:ring-gold"
-                    title={isRtl ? 'رفع القناة خطوة للأعلى' : 'Move Channel Up'}
-                  >
-                    <ArrowUp size={16} />
-                    <span>{isRtl ? 'رفع للأعلى ⬆' : 'Move Up ⬆'}</span>
-                  </button>
-                  <button
-                    onClick={() => handleMoveStep('down')}
-                    data-tv-modal="reorder"
-                    data-tv-move-down="true"
-                    data-tv-focusable="true"
-                    tabIndex={0}
-                    className="py-3 px-3 bg-white/10 hover:bg-gold hover:text-black border border-white/20 hover:border-gold text-white rounded-2xl flex items-center justify-center gap-2 font-black text-xs transition-all active:scale-95 focus:ring-2 focus:ring-gold"
-                    title={isRtl ? 'تنزيل القناة خطوة للأسفل' : 'Move Channel Down'}
-                  >
-                    <ArrowDown size={16} />
-                    <span>{isRtl ? 'تنزيل للأسفل ⬇' : 'Move Down ⬇'}</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Exact Position Input & Helper Controls */}
-              <div className="flex flex-col gap-2 bg-black/60 p-3 rounded-2xl border border-white/10">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs text-zinc-300 font-bold whitespace-nowrap">
-                    {isRtl ? 'رقم الترتيب المباشر:' : 'Target Position #:'}
-                  </span>
-                  
-                  <div className="flex items-center gap-1.5 bg-black/80 p-1 rounded-xl border border-gold/40">
-                    <button 
-                      type="button"
-                      onClick={() => handleMoveStep('up')}
-                      data-tv-modal="reorder"
-                      data-tv-focusable="true"
-                      tabIndex={0}
-                      className="p-1.5 text-gold hover:bg-gold/20 rounded-lg transition-all active:scale-125 focus:ring-2 focus:ring-gold"
-                      title={isRtl ? 'رفع لأعلى' : 'Up'}
-                    >
-                      <ChevronUp size={18} />
-                    </button>
-
-                    <input 
-                      type="text" 
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      data-tv-modal="reorder"
-                      data-tv-focusable="true"
-                      tabIndex={0}
-                      value={targetPosInput} 
-                      onChange={e => {
-                        const val = e.target.value.replace(/[^0-9]/g, '');
-                        setTargetPosInput(val);
-                      }}
-                      placeholder="1"
-                      className="w-16 bg-white/10 border border-white/20 rounded-lg px-2 py-1 text-center text-sm text-gold font-mono font-black outline-none focus:border-gold focus:ring-2 focus:ring-gold select-all"
-                    />
-
-                    <button 
-                      type="button"
-                      onClick={() => handleMoveStep('down')}
-                      data-tv-modal="reorder"
-                      data-tv-focusable="true"
-                      tabIndex={0}
-                      className="p-1.5 text-gold hover:bg-gold/20 rounded-lg transition-all active:scale-125 focus:ring-2 focus:ring-gold"
-                      title={isRtl ? 'تنزيل لأسفل' : 'Down'}
-                    >
-                      <ChevronDown size={18} />
-                    </button>
-
-                    {/* Quick backspace button */}
-                    <button
-                      type="button"
-                      onClick={() => setTargetPosInput(prev => prev.slice(0, -1))}
-                      data-tv-modal="reorder"
-                      data-tv-focusable="true"
-                      tabIndex={0}
-                      className="px-2 py-1 bg-red-500/20 hover:bg-red-500 text-red-300 hover:text-white rounded-lg text-xs font-bold transition-all focus:ring-2 focus:ring-red-400"
-                      title={isRtl ? 'مسح رقم ⌫' : 'Erase ⌫'}
-                    >
-                      ⌫
-                    </button>
-
-                    {/* Quick clear button */}
-                    <button
-                      type="button"
-                      onClick={() => setTargetPosInput('')}
-                      data-tv-modal="reorder"
-                      data-tv-focusable="true"
-                      tabIndex={0}
-                      className="px-2 py-1 bg-zinc-700/50 hover:bg-zinc-600 text-zinc-300 hover:text-white rounded-lg text-xs font-bold transition-all focus:ring-2 focus:ring-zinc-400"
-                      title={isRtl ? 'تفريغ C' : 'Clear C'}
-                    >
-                      C
-                    </button>
-                  </div>
-                </div>
-
-                {/* Virtual Numpad for TV Remotes */}
-                <div className="grid grid-cols-6 gap-1 pt-1.5 border-t border-white/5">
-                  {['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'].map((digit) => (
-                    <button
-                      key={digit}
-                      type="button"
-                      onClick={() => setTargetPosInput(prev => {
-                        if (!prev || prev === '0') return digit;
-                        if (prev.length >= 5) return prev;
-                        return prev + digit;
-                      })}
-                      data-tv-modal="reorder"
-                      data-tv-focusable="true"
-                      tabIndex={0}
-                      className="py-1 bg-white/5 hover:bg-gold hover:text-black border border-white/10 rounded-lg text-xs font-mono font-bold text-zinc-300 transition-colors focus:ring-2 focus:ring-gold focus:bg-gold focus:text-black"
-                    >
-                      {digit}
-                    </button>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => setTargetPosInput(prev => prev.slice(0, -1))}
-                    data-tv-modal="reorder"
-                    data-tv-focusable="true"
-                    tabIndex={0}
-                    className="py-1 bg-red-950/40 hover:bg-red-600 border border-red-500/30 rounded-lg text-xs font-bold text-red-300 hover:text-white transition-colors focus:ring-2 focus:ring-red-400"
-                    title="مسح ⌫"
-                  >
-                    ⌫
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setTargetPosInput('')}
-                    data-tv-modal="reorder"
-                    data-tv-focusable="true"
-                    tabIndex={0}
-                    className="py-1 bg-zinc-800 hover:bg-zinc-600 border border-white/10 rounded-lg text-xs font-bold text-zinc-400 hover:text-white transition-colors focus:ring-2 focus:ring-zinc-400"
-                    title="تفريغ C"
-                  >
-                    C
-                  </button>
-                </div>
-              </div>
-
-              {/* Favorite Toggle Action Button */}
-              {reorderTarget.type === 'channel' && (
-                <div className="pt-1">
-                  <button
-                    onClick={() => toggleFavorite(reorderTarget.id)}
-                    data-tv-modal="reorder"
-                    data-tv-focusable="true"
-                    tabIndex={0}
-                    className={`w-full py-3 px-4 rounded-2xl flex items-center justify-center gap-2.5 font-black text-xs sm:text-sm uppercase transition-all shadow-lg active:scale-95 focus:ring-4 focus:ring-gold ${
-                      favorites.includes(reorderTarget.id)
-                        ? 'bg-gold/20 text-gold border-2 border-gold shadow-[0_0_20px_rgba(212,175,55,0.3)]'
-                        : 'bg-white/10 text-zinc-300 border border-white/20 hover:border-gold hover:text-white'
-                    }`}
-                  >
-                    <Star size={18} className={favorites.includes(reorderTarget.id) ? 'fill-gold text-gold' : 'text-zinc-400'} />
-                    <span>
-                      {favorites.includes(reorderTarget.id)
-                        ? (isRtl ? 'إلغاء من المفضلة ★' : 'Remove from Favorites ★')
-                        : (isRtl ? 'إضافة إلى المفضلة ☆' : 'Add to Favorites ☆')}
-                    </span>
-                  </button>
-                </div>
-              )}
-
-              {/* Footer */}
-              <div className="pt-2 border-t border-white/10 flex items-center justify-end gap-2">
-                <button 
-                  onClick={() => setReorderTarget(null)} 
-                  data-tv-modal="reorder"
-                  data-tv-focusable="true"
-                  tabIndex={0}
-                  className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold transition-colors focus:ring-2 focus:ring-gold"
-                >
-                  {isRtl ? 'إلغاء' : 'Cancel'}
-                </button>
-                <button 
-                  onClick={() => {
-                    moveItemToPosition(reorderTarget.type, reorderTarget.id, parseInt(targetPosInput, 10) || 1, true);
-                  }}
-                  data-tv-modal="reorder"
-                  data-tv-focusable="true"
-                  tabIndex={0}
-                  className="px-5 py-2 bg-gold text-black rounded-xl text-xs font-black uppercase hover:bg-gold/80 transition-all shadow-md focus:ring-2 focus:ring-white"
-                >
-                  {isRtl ? '✓ حفظ الترتيب' : '✓ Save Position'}
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
+          <PositionEditModal
+            type={reorderTarget.type}
+            id={reorderTarget.id}
+            name={reorderTarget.name}
+            currentIndex={reorderTarget.index}
+            language={settings.language}
+            onClose={() => setReorderTarget(null)}
+            onSave={(newPos) => moveItemToPosition(reorderTarget.type, reorderTarget.id, newPos, true)}
+            onToggleFavorite={reorderTarget.type === 'channel' ? () => toggleFavorite(reorderTarget.id) : undefined}
+            isFavorite={favorites.includes(reorderTarget.id)}
+          />
         )}
       </AnimatePresence>
 
@@ -3351,6 +3030,16 @@ export default function LivePlayer({ onBack, settings, onUpdateSettings, userId,
             setShowEpgGrid(false);
           }}
           settings={settings}
+        />
+      )}
+      {showOcr && (
+        <AIOcrModal 
+          onClose={() => setShowOcr(false)} 
+          onSelectChannel={(name) => {
+            setSearch(name);
+            setShowOcr(false);
+          }} 
+          language={settings.language}
         />
       )}
     </div>

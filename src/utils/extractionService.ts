@@ -59,14 +59,45 @@ export class ExtractionService {
         await clearPlaylistData(playlistId);
       }
 
+      let effectivePlaylist: Playlist = { ...playlist };
+
+      // Auto-Upgrade M3U URLs with embedded Xtream credentials (e.g. get.php?username=...&password=...)
+      if (effectivePlaylist.url && !effectivePlaylist.url.startsWith('local_file://')) {
+        try {
+          const testUrl = new URL(effectivePlaylist.url.startsWith('http') ? effectivePlaylist.url : 'http://' + effectivePlaylist.url);
+          const u = testUrl.searchParams.get('username') || effectivePlaylist.username;
+          const p = testUrl.searchParams.get('password') || effectivePlaylist.password;
+          if (u && p) {
+            effectivePlaylist = {
+              ...effectivePlaylist,
+              type: 'xtream',
+              username: u,
+              password: p,
+              url: testUrl.origin,
+              portal: testUrl.origin
+            };
+
+            // Save updated playlist type and clean URL to localStorage
+            try {
+              const rawLocal = localStorage.getItem('achour_local_playlists');
+              if (rawLocal) {
+                const list: Playlist[] = JSON.parse(rawLocal);
+                const updated = list.map(item => item.id === playlist.id ? { ...item, ...effectivePlaylist } : item);
+                localStorage.setItem('achour_local_playlists', JSON.stringify(updated));
+              }
+            } catch (e) {}
+          }
+        } catch (e) {}
+      }
+
       onProgress({ stage: 'downloading', percent: 5, message: 'Connecting to provider...' });
 
-      if (playlist.type === 'm3u') {
-        return await this.extractM3U(playlist, onProgress);
-      } else if (playlist.type === 'xtream') {
-        return await this.extractXtream(playlist, onProgress);
-      } else if (playlist.type === 'stalker') {
-        return await this.extractStalker(playlist, onProgress);
+      if (effectivePlaylist.type === 'm3u') {
+        return await this.extractM3U(effectivePlaylist, onProgress);
+      } else if (effectivePlaylist.type === 'xtream') {
+        return await this.extractXtream(effectivePlaylist, onProgress);
+      } else if (effectivePlaylist.type === 'stalker') {
+        return await this.extractStalker(effectivePlaylist, onProgress);
       }
 
       return false;
@@ -81,6 +112,25 @@ export class ExtractionService {
   private static async extractM3U(playlist: Playlist, onProgress: ProgressCallback): Promise<boolean> {
     const playlistId = playlist.id;
     let url = playlist.url || '';
+
+    // If M3U URL contains Xtream credentials, route directly to extractXtream
+    if (url.includes('username=') && url.includes('password=')) {
+      try {
+        const testUrl = new URL(url.startsWith('http') ? url : 'http://' + url);
+        const u = testUrl.searchParams.get('username');
+        const p = testUrl.searchParams.get('password');
+        if (u && p) {
+          return await this.extractXtream({
+            ...playlist,
+            type: 'xtream',
+            username: u,
+            password: p,
+            url: testUrl.origin,
+            portal: testUrl.origin
+          }, onProgress);
+        }
+      } catch (e) {}
+    }
     
     // Handle local file
     let m3uContent = '';
@@ -93,10 +143,10 @@ export class ExtractionService {
       onProgress({ stage: 'downloading', percent: 10, message: 'Downloading playlist...' });
       try {
         const fetchUrl = getPlatformUrl('m3u', url);
-        // We use axios here for simplicity, but for true streaming we'd use fetch
-        // However, axios is already integrated and often handles large strings okay if memory is sufficient.
-        // For 500k lines (approx 50-100MB), it might be tight but doable on most modern devices.
         const response = await axios.get(fetchUrl, {
+          timeout: 120000, // 2 minutes for massive playlists
+          maxContentLength: 500 * 1024 * 1024,
+          maxBodyLength: 500 * 1024 * 1024,
           onDownloadProgress: (progressEvent) => {
             if (progressEvent.total) {
               const p = Math.round((progressEvent.loaded * 40) / progressEvent.total) + 10;
@@ -105,8 +155,8 @@ export class ExtractionService {
           }
         });
         m3uContent = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
-      } catch (e) {
-        throw new Error('Failed to download M3U playlist');
+      } catch (e: any) {
+        throw new Error(e.response?.data?.error || e.message || 'Failed to download M3U playlist');
       }
     }
 
@@ -170,56 +220,77 @@ export class ExtractionService {
     let cleanHost = (url || '').trim().replace(/\/+$/, '').replace(/\/(player_api|get|index)\.php.*$/i, '');
     if (cleanHost && !cleanHost.startsWith('http')) cleanHost = 'http://' + cleanHost;
 
-    const types: ('live' | 'movie' | 'series')[] = ['live', 'movie', 'series'];
+    const u = username ? encodeURIComponent(username) : '';
+    const p = password ? encodeURIComponent(password) : '';
+
+    onProgress({ stage: 'downloading', percent: 10, message: 'Authenticating with server...' });
+
+    // Step 1: Verify auth
+    try {
+      const authRes = await xtreamFetch(cleanHost, username || '', password || '', '');
+      if (authRes.data?.user_info?.status && authRes.data.user_info.status !== 'Active') {
+        console.warn('[extractXtream] Account status:', authRes.data.user_info.status);
+      }
+    } catch (authErr) {
+      console.warn('[extractXtream] Auth check warning:', authErr);
+    }
+
     const allChannels: any[] = [];
     const allCategories: any[] = [];
 
-    const actionMap = {
-      live: { streams: 'get_live_streams', cats: 'get_live_categories' },
-      movie: { streams: 'get_vod_streams', cats: 'get_vod_categories' },
-      series: { streams: 'get_series', cats: 'get_series_categories' }
-    };
-
-    for (let i = 0; i < types.length; i++) {
-      const type = types[i];
-      const actions = actionMap[type];
-      const basePercent = 10 + (i * 25);
-
-      onProgress({ stage: 'downloading', percent: basePercent, message: `Fetching ${type} metadata...` });
-      
-      const [catRes, streamRes] = await Promise.all([
-        xtreamFetch(cleanHost, username || '', password || '', actions.cats),
-        xtreamFetch(cleanHost, username || '', password || '', actions.streams)
+    // Step 2: Fetch Categories first (very fast, low memory footprint)
+    onProgress({ stage: 'downloading', percent: 20, message: 'Fetching categories...' });
+    try {
+      const [liveCatsRes, vodCatsRes, seriesCatsRes] = await Promise.all([
+        xtreamFetch(cleanHost, username || '', password || '', 'get_live_categories'),
+        xtreamFetch(cleanHost, username || '', password || '', 'get_vod_categories'),
+        xtreamFetch(cleanHost, username || '', password || '', 'get_series_categories')
       ]);
 
-      if (catRes.ok && catRes.rawList) {
-        const cats = catRes.rawList.map((c: any) => ({
+      if (liveCatsRes.ok && liveCatsRes.rawList) {
+        allCategories.push(...liveCatsRes.rawList.map((c: any) => ({
           category_id: String(c.category_id || c.id),
           category_name: String(c.category_name || c.name),
-          type: type
-        }));
-        allCategories.push(...cats);
+          type: 'live' as const
+        })));
       }
+      if (vodCatsRes.ok && vodCatsRes.rawList) {
+        allCategories.push(...vodCatsRes.rawList.map((c: any) => ({
+          category_id: String(c.category_id || c.id),
+          category_name: String(c.category_name || c.name),
+          type: 'movie' as const
+        })));
+      }
+      if (seriesCatsRes.ok && seriesCatsRes.rawList) {
+        allCategories.push(...seriesCatsRes.rawList.map((c: any) => ({
+          category_id: String(c.category_id || c.id),
+          category_name: String(c.category_name || c.name),
+          type: 'series' as const
+        })));
+      }
+    } catch (catErr) {
+      console.warn('[extractXtream] Categories fetch warning:', catErr);
+    }
 
-      if (streamRes.ok && streamRes.rawList) {
-        const u = username ? encodeURIComponent(username) : '';
-        const p = password ? encodeURIComponent(password) : '';
-
-        const streams = streamRes.rawList.map((s: any, idx: number) => {
-          const rawStreamId = String(s.stream_id || s.series_id || s.id || idx);
+    // Step 3: Fetch Live Streams
+    onProgress({ stage: 'downloading', percent: 40, message: 'Fetching live channels...' });
+    try {
+      const liveRes = await xtreamFetch(cleanHost, username || '', password || '', 'get_live_streams');
+      if (liveRes.ok && liveRes.rawList) {
+        const streams = liveRes.rawList.map((s: any, idx: number) => {
+          const rawStreamId = String(s.stream_id || s.id || idx);
           const cleanStreamId = rawStreamId.replace(/\.(m3u8|ts|mp4|mkv|avi|flv)$/i, '');
-          const ext = s.container_extension || (type === 'live' ? 'm3u8' : 'mp4');
-          const streamType = type === 'series' ? 'series' : type === 'movie' ? 'movie' : 'live';
-          const streamUrl = s.url || s.direct_source || `${cleanHost}/${streamType}/${u}/${p}/${cleanStreamId}.${ext}`;
+          const ext = s.container_extension || 'm3u8';
+          const streamUrl = s.url || s.direct_source || `${cleanHost}/live/${u}/${p}/${cleanStreamId}.${ext}`;
 
           return {
-            id: `${playlistId}_${type}_${cleanStreamId}`,
+            id: `${playlistId}_live_${cleanStreamId}`,
             stream_id: cleanStreamId,
-            name: String(s.name || s.title || `Stream ${idx + 1}`),
+            name: String(s.name || s.title || `Live ${idx + 1}`),
             logo: s.stream_icon || s.cover || s.logo || '',
             category_id: String(s.category_id || ''),
             category: s.category_name || '',
-            type: type,
+            type: 'live' as const,
             url: streamUrl,
             rawStreamId: rawStreamId,
             container_extension: ext,
@@ -229,6 +300,64 @@ export class ExtractionService {
         });
         allChannels.push(...streams);
       }
+    } catch (liveErr) {
+      console.warn('[extractXtream] Live streams fetch warning:', liveErr);
+    }
+
+    // Step 4: Fetch VOD and Series (gracefully handled for massive 1,000,000+ playlists)
+    onProgress({ stage: 'downloading', percent: 65, message: 'Fetching movies & series metadata...' });
+    try {
+      const vodRes = await xtreamFetch(cleanHost, username || '', password || '', 'get_vod_streams');
+      if (vodRes.ok && vodRes.rawList) {
+        const streams = vodRes.rawList.map((s: any, idx: number) => {
+          const rawStreamId = String(s.stream_id || s.id || idx);
+          const cleanStreamId = rawStreamId.replace(/\.(m3u8|ts|mp4|mkv|avi|flv)$/i, '');
+          const ext = s.container_extension || 'mp4';
+          const streamUrl = s.url || s.direct_source || `${cleanHost}/movie/${u}/${p}/${cleanStreamId}.${ext}`;
+
+          return {
+            id: `${playlistId}_movie_${cleanStreamId}`,
+            stream_id: cleanStreamId,
+            name: String(s.name || s.title || `Movie ${idx + 1}`),
+            logo: s.stream_icon || s.cover || s.logo || '',
+            category_id: String(s.category_id || ''),
+            category: s.category_name || '',
+            type: 'movie' as const,
+            url: streamUrl,
+            rawStreamId: rawStreamId,
+            container_extension: ext,
+            num: s.num || idx + 1
+          };
+        });
+        allChannels.push(...streams);
+      }
+    } catch (vodErr) {
+      console.warn('[extractXtream] Full VOD list exceeds single payload; categories saved for on-demand browsing:', vodErr);
+    }
+
+    try {
+      const seriesRes = await xtreamFetch(cleanHost, username || '', password || '', 'get_series');
+      if (seriesRes.ok && seriesRes.rawList) {
+        const streams = seriesRes.rawList.map((s: any, idx: number) => {
+          const rawStreamId = String(s.series_id || s.id || idx);
+          const cleanStreamId = rawStreamId.replace(/\.(m3u8|ts|mp4|mkv|avi|flv)$/i, '');
+
+          return {
+            id: `${playlistId}_series_${cleanStreamId}`,
+            stream_id: cleanStreamId,
+            name: String(s.name || s.title || `Series ${idx + 1}`),
+            logo: s.stream_icon || s.cover || s.logo || '',
+            category_id: String(s.category_id || ''),
+            category: s.category_name || '',
+            type: 'series' as const,
+            rawStreamId: rawStreamId,
+            num: s.num || idx + 1
+          };
+        });
+        allChannels.push(...streams);
+      }
+    } catch (seriesErr) {
+      console.warn('[extractXtream] Full Series list exceeds single payload; categories saved for on-demand browsing:', seriesErr);
     }
 
     return await this.saveExtractedData(playlistId, allChannels, onProgress, allCategories);

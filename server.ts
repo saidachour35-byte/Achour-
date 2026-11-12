@@ -87,8 +87,10 @@ app.get('/api/proxy/m3u', async (req, res) => {
   for (const ua of IPTV_USER_AGENTS) {
     try {
       const response = await axios.get(sanitizedUrl, {
-        timeout: 25000,
+        timeout: 90000,
         responseType: 'text',
+        maxContentLength: 500 * 1024 * 1024,
+        maxBodyLength: 500 * 1024 * 1024,
         headers: {
           'User-Agent': ua,
           'Accept': '*/*',
@@ -207,7 +209,9 @@ app.get('/api/proxy/xtream', async (req, res) => {
       try {
         console.log(`[Xtream Proxy] Requesting: ${targetUrl} (Action: ${action || 'auth'})`);
         const response = await axios.get(targetUrl, { 
-          timeout: 20000,
+          timeout: 60000,
+          maxContentLength: 500 * 1024 * 1024,
+          maxBodyLength: 500 * 1024 * 1024,
           headers: { 
             'User-Agent': ua,
             'Accept': 'application/json, text/plain, */*',
@@ -725,22 +729,32 @@ app.post('/api/gemini/ocr', async (req, res) => {
   if (!image) return res.status(400).json({ error: 'No image provided' });
 
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: [
+    const imagePart = {
+      inlineData: {
+        mimeType: "image/jpeg",
+        data: image.split(',')[1] || image
+      }
+    };
+    const textPart = {
+      text: `Analyze this IPTV screenshot.
+        If it's a list of channels, return a comma-separated list of channel names.
+        If it's a login screen or contains credentials, extract the following fields in JSON format:
         {
-          inlineData: {
-            mimeType: "image/jpeg",
-            data: image.split(',')[1] || image
-          }
-        },
-        {
-          text: "Analyze this IPTV screenshot and extract the list of channel names or category names visible. Return them as a simple comma-separated list of strings. Only return the list, no other text."
+          "host": "server url or host",
+          "username": "username",
+          "password": "password",
+          "type": "xtream"
         }
-      ]
+        Only return the JSON or the comma-separated list, no other text.`
+    };
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3.8-flash",
+      contents: [{ parts: [imagePart, textPart] }]
     });
 
-    res.json({ result: response.text });
+    const resultText = response.text || '';
+    res.json({ result: resultText });
   } catch (error: any) {
     console.error('Gemini OCR Error:', error.message);
     res.status(500).json({ error: 'AI analysis failed' });
