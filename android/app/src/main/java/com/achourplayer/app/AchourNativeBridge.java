@@ -2,7 +2,6 @@
 package com.achourplayer.app;
 
 import android.app.Activity;
-import android.graphics.PixelFormat;
 import android.view.Gravity;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
@@ -36,6 +35,8 @@ public class AchourNativeBridge {
                 );
 
                 layoutParams.gravity = Gravity.TOP | Gravity.LEFT;
+                layoutParams.leftMargin = x;
+                layoutParams.topMargin = y;
 
                 activity.addContentView(playerView, layoutParams);
             } else {
@@ -112,6 +113,7 @@ public class AchourNativeBridge {
 
                 playerView.release();
                 playerView = null;
+                layoutParams = null;
             }
         });
     }
